@@ -630,6 +630,39 @@ class GrampsWebAPI:
 
             _LOGGER.info("Checking %s people for death dates...", len(all_people))
             
+            # Diagnostics: check sample people (first 5) for death events
+            _LOGGER.info("Running diagnostics on first 5 people for death events...")
+            for idx, person in enumerate(all_people[:5]):
+                name = self._get_person_name(person)
+                death_ref_index = person.get("death_ref_index", -1)
+                event_ref_list = person.get("event_ref_list", [])
+                _LOGGER.info(
+                    "Person %s (%s): death_ref_index=%s, event_ref_list length=%s",
+                    idx + 1,
+                    name,
+                    death_ref_index,
+                    len(event_ref_list),
+                )
+                
+                # Log all events to see their types
+                if event_ref_list:
+                    for event_idx, event_ref in enumerate(event_ref_list):
+                        event_handle = event_ref.get("ref") or event_ref.get("handle") or event_ref.get("hlink")
+                        if event_handle:
+                            try:
+                                event = self._get_event(event_handle)
+                                if event:
+                                    event_type = event.get("type", {})
+                                    type_string = event_type.get("string", "") if isinstance(event_type, dict) else str(event_type)
+                                    _LOGGER.info(
+                                        "  Event %s: type=%s, has date=%s",
+                                        event_idx,
+                                        type_string,
+                                        "date" in event,
+                                    )
+                            except Exception as e:
+                                _LOGGER.debug("Could not fetch event %s: %s", event_handle, e)
+            
             deathdays = []
             candidates = 0
             no_death_ref = 0
@@ -812,8 +845,14 @@ class GrampsWebAPI:
     def _get_event(self, handle: str):
         """Get event details from API."""
         try:
-            return self._get(f"events/{handle}")
-        except Exception:
+            if not handle:
+                return None
+            event = self._get(f"events/{handle}")
+            if event:
+                _LOGGER.debug("Fetched event %s: type=%s", handle, event.get("type", {}))
+            return event
+        except Exception as err:
+            _LOGGER.debug("Could not fetch event %s: %s", handle, err)
             return None
 
     def _get_family(self, handle: str):
