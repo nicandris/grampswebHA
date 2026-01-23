@@ -93,12 +93,13 @@ class GrampsWebNextBirthdayBase(CoordinatorEntity, SensorEntity):
     def device_info(self) -> DeviceInfo:
         config_url = self._entry.data.get(CONF_URL)
         return DeviceInfo(
-            identifiers={(DOMAIN, self._entry.entry_id)},
-            name=self._entry.title or "Gramps HA",
+            identifiers={(DOMAIN, f"{self._entry.entry_id}_birthdays")},
+            name="Geburtstage" if self._entry.data.get("language") == "de" else "Birthdays",
             manufacturer="Gramps Web",
             model="Birthdays",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=config_url,
+            via_device=(DOMAIN, self._entry.entry_id),
         )
 
     @property
@@ -290,7 +291,51 @@ class GrampsWebAllBirthdaysSensor(CoordinatorEntity, SensorEntity):
         )
 
 
-class GrampsWebNextDeathdayNameSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextDeathdayBase(CoordinatorEntity, SensorEntity):
+    """Base class for deathday sensors."""
+
+    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+        super().__init__(coordinator)
+        self._index = index
+        self._entry = entry
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        config_url = self._entry.data.get(CONF_URL)
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"{self._entry.entry_id}_deathdays")},
+            name="Gedenktage" if self._entry.data.get("language") == "de" else "Deathdays",
+            manufacturer="Gramps Web",
+            model="Deathdays",
+            entry_type=DeviceEntryType.SERVICE,
+            configuration_url=config_url,
+            via_device=(DOMAIN, self._entry.entry_id),
+        )
+
+
+class GrampsWebNextAnniversaryBase(CoordinatorEntity, SensorEntity):
+    """Base class for anniversary sensors."""
+
+    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+        super().__init__(coordinator)
+        self._index = index
+        self._entry = entry
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        config_url = self._entry.data.get(CONF_URL)
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"{self._entry.entry_id}_anniversaries")},
+            name="Hochzeitstage" if self._entry.data.get("language") == "de" else "Anniversaries",
+            manufacturer="Gramps Web",
+            model="Anniversaries",
+            entry_type=DeviceEntryType.SERVICE,
+            configuration_url=config_url,
+            via_device=(DOMAIN, self._entry.entry_id),
+        )
+
+
+class GrampsWebNextDeathdayNameSensor(GrampsWebNextDeathdayBase):
     """Next deathday sensor showing name."""
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
@@ -314,7 +359,7 @@ class GrampsWebNextDeathdayNameSensor(GrampsWebNextBirthdayBase):
         return "mdi:skull"
 
 
-class GrampsWebNextDeathdayDateSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextDeathdayDateSensor(GrampsWebNextDeathdayBase):
     """Next deathday sensor showing death date."""
 
     _attr_device_class = SensorDeviceClass.DATE
@@ -342,7 +387,7 @@ class GrampsWebNextDeathdayDateSensor(GrampsWebNextBirthdayBase):
         return "mdi:calendar"
 
 
-class GrampsWebNextDeathdayYearsAgoSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextDeathdayYearsAgoSensor(GrampsWebNextDeathdayBase):
     """Next deathday sensor showing years ago."""
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
@@ -365,7 +410,7 @@ class GrampsWebNextDeathdayYearsAgoSensor(GrampsWebNextBirthdayBase):
         return "mdi:history"
 
 
-class GrampsWebNextDeathdayDaysUntilSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextDeathdayDaysUntilSensor(GrampsWebNextDeathdayBase):
     """Next deathday sensor showing days until."""
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
@@ -389,7 +434,7 @@ class GrampsWebNextDeathdayDaysUntilSensor(GrampsWebNextBirthdayBase):
         return "mdi:calendar-clock"
 
 
-class GrampsWebNextAnniversaryNameSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextAnniversaryNameSensor(GrampsWebNextAnniversaryBase):
     """Next anniversary sensor showing names."""
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
@@ -412,7 +457,7 @@ class GrampsWebNextAnniversaryNameSensor(GrampsWebNextBirthdayBase):
         return "mdi:heart-multiple"
 
 
-class GrampsWebNextAnniversaryYearsTogetherSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextAnniversaryYearsTogetherSensor(GrampsWebNextAnniversaryBase):
     """Next anniversary sensor showing years together."""
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
@@ -436,7 +481,7 @@ class GrampsWebNextAnniversaryYearsTogetherSensor(GrampsWebNextBirthdayBase):
         return "mdi:numeric"
 
 
-class GrampsWebNextAnniversaryDateSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextAnniversaryDateSensor(GrampsWebNextAnniversaryBase):
     """Next anniversary sensor showing marriage date."""
 
     _attr_device_class = SensorDeviceClass.DATE
@@ -464,7 +509,7 @@ class GrampsWebNextAnniversaryDateSensor(GrampsWebNextBirthdayBase):
         return "mdi:calendar"
 
 
-class GrampsWebNextAnniversaryDaysUntilSensor(GrampsWebNextBirthdayBase):
+class GrampsWebNextAnniversaryDaysUntilSensor(GrampsWebNextAnniversaryBase):
     """Next anniversary sensor showing days until."""
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
