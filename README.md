@@ -89,6 +89,22 @@ Zusätzlich wird ein aggregierter Sensor bereitgestellt:
 
 - `sensor.all_upcoming_birthdays` – Anzahl/Liste aller anstehenden Geburtstage
 
+## Benachrichtigungen
+
+Die Integration sendet automatisch Benachrichtigungen für folgende Ereignisse:
+
+### 🎂 Neue Geburtstage erkannt
+- Wird ausgelöst, wenn eine neue Person zur Geburtstagliste hinzugefügt wird
+- Enthält: Name, Geburtsdatum und Alter am kommenden Geburtstag
+- Erscheint als persistente Benachrichtigung in Home Assistant
+
+### 🎉 Geburtstag morgen
+- Wird ausgelöst, wenn jemand morgen Geburtstag hat
+- Enthält: Name und zukünftiges Alter
+- Wird täglich geprüft und benachrichtigt
+
+Benachrichtigungen können unter **Einstellungen → Benachrichtigungen** verwaltet werden.
+
 ## Dashboard Konfiguration
 
 Beispiel-Vorlagen (Grid und Markdown) mit den neuen, getrennten Sensoren finden Sie in [EXAMPLES.md](EXAMPLES.md).

@@ -92,6 +92,22 @@ Additionally, an aggregated sensor is provided:
 
 - `sensor.all_upcoming_birthdays` – Count/list of all upcoming birthdays
 
+## Notifications
+
+The integration automatically sends notifications for the following events:
+
+### 🎂 New Birthday Detected
+- Triggered when a new person is added to the birthday list
+- Contains: Name, birth date, and age on upcoming birthday
+- Appears as a persistent notification in Home Assistant
+
+### 🎉 Birthday Tomorrow
+- Triggered when someone has a birthday tomorrow
+- Contains: Name and future age
+- Checked daily and notified
+
+Notifications can be managed under **Settings → Notifications**.
+
 ## Dashboard Configuration
 
 Example templates (Grid and Markdown) with the new separate sensors can be found in [EXAMPLES.md](EXAMPLES.md).
