@@ -36,6 +36,7 @@ async def async_setup_entry(
         sensors.append(GrampsWebNextBirthdayNameSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayAgeSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayDateSensor(coordinator, entry, i))
+        sensors.append(GrampsWebNextBirthdayDaysRemainingSensor(coordinator, entry, i))
 
     sensors.append(GrampsWebAllBirthdaysSensor(coordinator, entry))
     
@@ -151,6 +152,27 @@ class GrampsWebNextBirthdayDateSensor(GrampsWebNextBirthdayBase):
     @property
     def icon(self):
         return "mdi:calendar"
+
+
+class GrampsWebNextBirthdayDaysRemainingSensor(GrampsWebNextBirthdayBase):
+    """Next birthday sensor showing days until birthday."""
+
+    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+        super().__init__(coordinator, entry, index)
+        self._attr_name = f"Next Birthday {index + 1} Days Remaining"
+        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_days"
+        self._attr_unit_of_measurement = "days"
+
+    @property
+    def native_value(self):
+        birthday = self._get_birthday()
+        if not birthday:
+            return None
+        return birthday.get("days_until")
+
+    @property
+    def icon(self):
+        return "mdi:calendar-clock"
 
 
 class GrampsWebAllBirthdaysSensor(CoordinatorEntity, SensorEntity):
