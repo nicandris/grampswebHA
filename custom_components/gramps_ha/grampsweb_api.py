@@ -931,13 +931,26 @@ class GrampsWebAPI:
                 if not event:
                     continue
 
-                if "Marriage" not in event.get("type", ""):
+                # Verify this is a Marriage event
+                event_type = event.get("type", {})
+                type_string = (
+                    event_type.get("string", "")
+                    if isinstance(event_type, dict)
+                    else str(event_type)
+                )
+                if "marriage" not in type_string.lower():
                     continue
 
                 dateval = event.get("date", {})
-                parsed_dateval = self._parse_dateval(
-                    dateval.get("val") if isinstance(dateval, dict) else dateval
-                )
+                raw_dateval = None
+                if isinstance(dateval, dict):
+                    raw_dateval = (
+                        dateval.get("dateval") or dateval.get("val") or dateval.get("start")
+                    )
+                else:
+                    raw_dateval = dateval
+
+                parsed_dateval = self._parse_dateval(raw_dateval)
                 if not parsed_dateval:
                     continue
 
