@@ -101,6 +101,60 @@ class GrampsWebAPI:
 
         return handle
 
+    async def get_event_types(self) -> list[dict]:
+        """Fetch all available event types from Gramps Web."""
+        try:
+            _LOGGER.info("Fetching all event types from Gramps Web...")
+
+            # Try to fetch event types
+            # Gramps Web API endpoint for event types
+            event_types = self._get("event_types")
+
+            if isinstance(event_types, list):
+                _LOGGER.info("Found %s event types", len(event_types))
+                for et in event_types:
+                    _LOGGER.info("  - %s", et)
+                return event_types
+            elif isinstance(event_types, dict):
+                # Sometimes returns dict with 'types' key
+                types_list = event_types.get("types", event_types.get("results", []))
+                _LOGGER.info("Found %s event types", len(types_list))
+                for et in types_list:
+                    _LOGGER.info("  - %s", et)
+                return types_list
+
+            _LOGGER.warning(
+                "Unexpected event types response format: %s", type(event_types)
+            )
+            return []
+
+        except Exception as err:
+            _LOGGER.error("Failed to fetch event types: %s", err)
+            return []
+
+    async def get_all_events(self) -> list[dict]:
+        """Fetch all events (not just birthdays) from Gramps Web."""
+        try:
+            _LOGGER.info("Fetching all events from Gramps Web...")
+
+            events = self._get("events")
+
+            if isinstance(events, dict):
+                results = events.get("results", [])
+                _LOGGER.info("Found %s events", len(results))
+                return results
+            elif isinstance(events, list):
+                _LOGGER.info("Found %s events", len(events))
+                return events
+
+            return []
+
+        except Exception as err:
+            _LOGGER.error("Failed to fetch events: %s", err)
+            return []
+
+        return handle
+
     def _parse_dateval(self, dateval):
         """Convert Gramps date structures into a Python date using safe heuristics."""
         try:
@@ -625,11 +679,13 @@ class GrampsWebAPI:
 
             all_people = self.get_people()
             if not isinstance(all_people, list):
-                _LOGGER.warning("Unexpected response type for people: %s", type(all_people))
+                _LOGGER.warning(
+                    "Unexpected response type for people: %s", type(all_people)
+                )
                 return []
 
             _LOGGER.info("Checking %s people for death dates...", len(all_people))
-            
+
             # Diagnostics: check sample people (first 5) for death events
             _LOGGER.info("Running diagnostics on first 5 people for death events...")
             for idx, person in enumerate(all_people[:5]):
@@ -643,17 +699,25 @@ class GrampsWebAPI:
                     death_ref_index,
                     len(event_ref_list),
                 )
-                
+
                 # Log all events to see their types
                 if event_ref_list:
                     for event_idx, event_ref in enumerate(event_ref_list):
-                        event_handle = event_ref.get("ref") or event_ref.get("handle") or event_ref.get("hlink")
+                        event_handle = (
+                            event_ref.get("ref")
+                            or event_ref.get("handle")
+                            or event_ref.get("hlink")
+                        )
                         if event_handle:
                             try:
                                 event = self._get_event(event_handle)
                                 if event:
                                     event_type = event.get("type", {})
-                                    type_string = event_type.get("string", "") if isinstance(event_type, dict) else str(event_type)
+                                    type_string = (
+                                        event_type.get("string", "")
+                                        if isinstance(event_type, dict)
+                                        else str(event_type)
+                                    )
                                     _LOGGER.info(
                                         "  Event %s: type=%s, has date=%s",
                                         event_idx,
@@ -661,8 +725,10 @@ class GrampsWebAPI:
                                         "date" in event,
                                     )
                             except Exception as e:
-                                _LOGGER.debug("Could not fetch event %s: %s", event_handle, e)
-            
+                                _LOGGER.debug(
+                                    "Could not fetch event %s: %s", event_handle, e
+                                )
+
             deathdays = []
             candidates = 0
             no_death_ref = 0
@@ -670,8 +736,10 @@ class GrampsWebAPI:
 
             for idx, person in enumerate(all_people):
                 if idx % 50 == 0:
-                    _LOGGER.debug("Processed %s/%s people for deathdays...", idx, len(all_people))
-                    
+                    _LOGGER.debug(
+                        "Processed %s/%s people for deathdays...", idx, len(all_people)
+                    )
+
                 self._ensure_person_events(person)
 
                 if self._has_death_date(person):
@@ -711,7 +779,9 @@ class GrampsWebAPI:
 
             all_people = self.get_people()
             if not isinstance(all_people, list):
-                _LOGGER.warning("Unexpected response type for people: %s", type(all_people))
+                _LOGGER.warning(
+                    "Unexpected response type for people: %s", type(all_people)
+                )
                 return []
 
             anniversaries = []
@@ -725,7 +795,9 @@ class GrampsWebAPI:
                 marriage_events += len(marriage_dates)
                 for spouse_name, marriage_date in marriage_dates:
                     person_name = self._get_person_name(person)
-                    anniversary = self._calculate_anniversary(person_name, spouse_name, marriage_date)
+                    anniversary = self._calculate_anniversary(
+                        person_name, spouse_name, marriage_date
+                    )
                     if anniversary:
                         anniversaries.append(anniversary)
 
@@ -751,19 +823,31 @@ class GrampsWebAPI:
         try:
             person_name = self._get_person_name(person)
             death_ref_index = person.get("death_ref_index", -1)
-            
+
             if death_ref_index < 0:
-                _LOGGER.debug("Person %s: no death_ref_index (value: %s)", person_name, death_ref_index)
+                _LOGGER.debug(
+                    "Person %s: no death_ref_index (value: %s)",
+                    person_name,
+                    death_ref_index,
+                )
                 return False
 
             event_ref_list = person.get("event_ref_list", [])
             if death_ref_index >= len(event_ref_list):
-                _LOGGER.debug("Person %s: death_ref_index %s out of range (event_ref_list length: %s)", 
-                             person_name, death_ref_index, len(event_ref_list))
+                _LOGGER.debug(
+                    "Person %s: death_ref_index %s out of range (event_ref_list length: %s)",
+                    person_name,
+                    death_ref_index,
+                    len(event_ref_list),
+                )
                 return False
 
             death_ref = event_ref_list[death_ref_index]
-            handle = death_ref.get("ref") or death_ref.get("handle") or death_ref.get("hlink")
+            handle = (
+                death_ref.get("ref")
+                or death_ref.get("handle")
+                or death_ref.get("hlink")
+            )
 
             if not handle:
                 _LOGGER.debug("Person %s: no handle in death_ref", person_name)
@@ -771,7 +855,11 @@ class GrampsWebAPI:
 
             event = self._get_event(handle)
             if not event:
-                _LOGGER.debug("Person %s: could not fetch event with handle %s", person_name, handle)
+                _LOGGER.debug(
+                    "Person %s: could not fetch event with handle %s",
+                    person_name,
+                    handle,
+                )
                 return False
 
             # Verify this is actually a Death event
@@ -782,22 +870,22 @@ class GrampsWebAPI:
                 else str(event_type)
             )
             if "death" not in type_string.lower():
-                _LOGGER.debug("Person %s: event type is '%s', not Death", person_name, type_string)
+                _LOGGER.debug(
+                    "Person %s: event type is '%s', not Death", person_name, type_string
+                )
                 return False
 
             dateval = event.get("date", {})
             raw_dateval = None
             if isinstance(dateval, dict):
                 raw_dateval = (
-                    dateval.get("dateval")
-                    or dateval.get("val")
-                    or dateval.get("start")
+                    dateval.get("dateval") or dateval.get("val") or dateval.get("start")
                 )
             else:
                 raw_dateval = dateval
 
             parsed = self._parse_dateval(raw_dateval)
-            
+
             if not parsed:
                 _LOGGER.debug(
                     "Person %s: could not parse death date from %s (raw=%s)",
@@ -806,12 +894,21 @@ class GrampsWebAPI:
                     raw_dateval,
                 )
                 return False
-            
-            _LOGGER.debug("Person %s: has death date %s (event type: %s)", person_name, parsed, type_string)
+
+            _LOGGER.debug(
+                "Person %s: has death date %s (event type: %s)",
+                person_name,
+                parsed,
+                type_string,
+            )
             return bool(parsed)
 
         except Exception as err:
-            _LOGGER.debug("Error checking death date for %s: %s", person.get("handle", "unknown"), err)
+            _LOGGER.debug(
+                "Error checking death date for %s: %s",
+                person.get("handle", "unknown"),
+                err,
+            )
             return False
 
     def _get_marriage_dates(self, person: dict) -> list:
@@ -822,7 +919,11 @@ class GrampsWebAPI:
             person_handle = person.get("handle", "")
 
             for event_ref in event_ref_list:
-                event_handle = event_ref.get("ref") or event_ref.get("handle") or event_ref.get("hlink")
+                event_handle = (
+                    event_ref.get("ref")
+                    or event_ref.get("handle")
+                    or event_ref.get("hlink")
+                )
                 if not event_handle:
                     continue
 
@@ -834,14 +935,20 @@ class GrampsWebAPI:
                     continue
 
                 dateval = event.get("date", {})
-                parsed_dateval = self._parse_dateval(dateval.get("val") if isinstance(dateval, dict) else dateval)
+                parsed_dateval = self._parse_dateval(
+                    dateval.get("val") if isinstance(dateval, dict) else dateval
+                )
                 if not parsed_dateval:
                     continue
 
                 # Try to extract spouse name from family reference
                 families = person.get("family_list", [])
                 for family_ref in families:
-                    family_handle = family_ref.get("ref") or family_ref.get("handle") or family_ref.get("hlink")
+                    family_handle = (
+                        family_ref.get("ref")
+                        or family_ref.get("handle")
+                        or family_ref.get("hlink")
+                    )
                     if not family_handle:
                         continue
 
@@ -851,7 +958,9 @@ class GrampsWebAPI:
 
                     # Get spouse from family - other parent in parent_rel_list
                     for parent_rel in family.get("parent_rel_list", []):
-                        spouse_handle = parent_rel.get("ref") or parent_rel.get("handle")
+                        spouse_handle = parent_rel.get("ref") or parent_rel.get(
+                            "handle"
+                        )
                         if not spouse_handle or spouse_handle == person_handle:
                             continue
                         try:
@@ -875,7 +984,9 @@ class GrampsWebAPI:
                 return None
             event = self._get(f"events/{handle}")
             if event:
-                _LOGGER.debug("Fetched event %s: type=%s", handle, event.get("type", {}))
+                _LOGGER.debug(
+                    "Fetched event %s: type=%s", handle, event.get("type", {})
+                )
             return event
         except Exception as err:
             _LOGGER.debug("Could not fetch event %s: %s", handle, err)
@@ -900,7 +1011,11 @@ class GrampsWebAPI:
                 return None
 
             death_ref = event_ref_list[death_ref_index]
-            handle = death_ref.get("ref") or death_ref.get("handle") or death_ref.get("hlink")
+            handle = (
+                death_ref.get("ref")
+                or death_ref.get("handle")
+                or death_ref.get("hlink")
+            )
 
             event = self._get_event(handle)
             if not event:
@@ -915,16 +1030,18 @@ class GrampsWebAPI:
             )
             if "death" not in type_string.lower():
                 name = self._get_person_name(person)
-                _LOGGER.debug("Person %s: death_ref_index points to non-Death event type: %s", name, type_string)
+                _LOGGER.debug(
+                    "Person %s: death_ref_index points to non-Death event type: %s",
+                    name,
+                    type_string,
+                )
                 return None
 
             dateval = event.get("date", {})
             raw_dateval = None
             if isinstance(dateval, dict):
                 raw_dateval = (
-                    dateval.get("dateval")
-                    or dateval.get("val")
-                    or dateval.get("start")
+                    dateval.get("dateval") or dateval.get("val") or dateval.get("start")
                 )
             else:
                 raw_dateval = dateval
@@ -957,7 +1074,9 @@ class GrampsWebAPI:
             _LOGGER.debug("Could not calculate deathday: %s", err)
             return None
 
-    def _calculate_anniversary(self, person1_name: str, person2_name: str, dateval: dict) -> dict | None:
+    def _calculate_anniversary(
+        self, person1_name: str, person2_name: str, dateval: dict
+    ) -> dict | None:
         """Calculate next anniversary for a couple."""
         try:
             marriage_date = self._parse_dateval(dateval)
