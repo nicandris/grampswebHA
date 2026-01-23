@@ -16,6 +16,8 @@ und wenn man schon einen Stammbaum hat, kann man auch die Familien Geburtstage a
 - 🖼️ Lädt Profilbilder aus Gramps Web herunter (falls vorhanden)
 - 🔄 Automatische Aktualisierung alle 6 Stunden
 - 🔐 Unterstützt authentifizierte und öffentliche Gramps Web Instanzen
+- 🔔 Benachrichtigungen bei neuen Geburtstagen in der Liste
+- 🎺 Benachrichtigungen wenn morgen jemand Geburtstag hat
 
 ## Installation
 

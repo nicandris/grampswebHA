@@ -117,6 +117,8 @@
       "all_upcoming_birthdays": {
         "name": "Tutti i compleanni in arrivo"
       }
-    }
-  }
+    }  },
+  "notifications": {
+    "new_birthday_title": "🎂 Nuovo compleanno rilevato",
+    "birthday_tomorrow_title": "🎉 Compleanno domani!"  }
 }

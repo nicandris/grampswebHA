@@ -1,7 +1,7 @@
 """The Gramps HA integration."""
 
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime, date
 from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
@@ -13,6 +13,7 @@ from homeassistant.helpers.device_registry import (
     DeviceInfo,
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.components import persistent_notification
 
 from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SURNAME_FILTER
 
@@ -112,6 +113,7 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             update_interval=SCAN_INTERVAL,
         )
         self.api = api
+        self.last_birthdays = []  # Track previous list for comparison
 
     async def _async_update_data(self):
         """Fetch data from API."""
@@ -119,7 +121,58 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Fetching birthday data from Gramps Web")
             data = await self.hass.async_add_executor_job(self.api.get_birthdays)
             _LOGGER.debug("Fetched %s birthdays", len(data) if data else 0)
+            
+            # Check for notifications
+            await self._check_notifications(data)
+            
+            # Store current list for next comparison
+            self.last_birthdays = data or []
+            
             return data
         except Exception as err:
             _LOGGER.error("Error fetching data: %s", err, exc_info=True)
             raise UpdateFailed(f"Error communicating with API: {err}") from err
+
+    async def _check_notifications(self, current_birthdays):
+        """Check for new birthdays and birthdays tomorrow."""
+        if not current_birthdays:
+            return
+        
+        # Check for new people in the list
+        current_names = {b.get("person_name") for b in current_birthdays}
+        last_names = {b.get("person_name") for b in self.last_birthdays}
+        new_people = current_names - last_names
+        
+        if new_people:
+            for person in current_birthdays:
+                if person.get("person_name") in new_people:
+                    age = person.get("age", "?")
+                    next_birthday = person.get("next_birthday", "?")
+                    title = "🎂 Neuer Geburtstag erkannt"
+                    message = f"{person.get('person_name')} hat bald Geburtstag!\n\nDatum: {next_birthday}\nAlter: {age} Jahre"
+                    persistent_notification.create(
+                        self.hass,
+                        message,
+                        title=title,
+                        notification_id=f"gramps_new_{person.get('person_name')}"
+                    )
+                    _LOGGER.info("New birthday notification: %s", person.get("person_name"))
+        
+        # Check for birthdays tomorrow
+        today = date.today()
+        tomorrow = today.replace(day=today.day + 1) if today.day < 28 else date(today.year if today.month < 12 else today.year + 1, today.month if today.month < 12 else 1, 1)
+        tomorrow_str = tomorrow.strftime("%Y-%m-%d")
+        
+        for person in current_birthdays:
+            next_bday = person.get("next_birthday", "")
+            if next_bday.startswith(tomorrow_str):
+                age = person.get("age", "?")
+                title = "🎉 Geburtstag morgen!"
+                message = f"{person.get('person_name')} hat morgen Geburtstag!\n\nZukunftiges Alter: {age + 1} Jahre"
+                persistent_notification.create(
+                    self.hass,
+                    message,
+                    title=title,
+                    notification_id=f"gramps_tomorrow_{person.get('person_name')}"
+                )
+                _LOGGER.info("Birthday tomorrow notification: %s", person.get("person_name"))

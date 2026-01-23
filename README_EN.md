@@ -19,6 +19,8 @@ And if you already have a family tree, you might as well display family birthday
 - 🔐 Supports authenticated and public Gramps Web instances
 - 🌍 Translations: German, English, French, Italian, Bosnian
 - 👤 Surname filter for targeted display
+- 🔔 Notifications when new birthdays are added to the list
+- 🎺 Notifications when someone has a birthday tomorrow
 
 ## Installation
 

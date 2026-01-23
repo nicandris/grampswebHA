@@ -118,5 +118,9 @@
         "name": "Alle anstehenden Geburtstage"
       }
     }
+  },
+  "notifications": {
+    "new_birthday_title": "🎂 Neuer Geburtstag erkannt",
+    "birthday_tomorrow_title": "🎉 Geburtstag morgen!"
   }
 }

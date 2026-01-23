@@ -117,6 +117,8 @@
       "all_upcoming_birthdays": {
         "name": "Svi nadolazeći rođendani"
       }
-    }
-  }
+    }  },
+  "notifications": {
+    "new_birthday_title": "🎂 Novi rođendan otkrivEn",
+    "birthday_tomorrow_title": "🎉 Rođendan sutra!"  }
 }

@@ -118,5 +118,9 @@
         "name": "All Upcoming Birthdays"
       }
     }
+  },
+  "notifications": {
+    "new_birthday_title": "🎂 New Birthday Detected",
+    "birthday_tomorrow_title": "🎉 Birthday Tomorrow!"
   }
 }

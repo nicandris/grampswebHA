@@ -118,5 +118,9 @@
         "name": "Tous les anniversaires à venir"
       }
     }
+  },
+  "notifications": {
+    "new_birthday_title": "🎂 Nouvel anniversaire détecté",
+    "birthday_tomorrow_title": "🎉 Anniversaire demain!"
   }
 }
