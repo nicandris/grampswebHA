@@ -125,11 +125,25 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             if self.entry.data.get("show_deathdays", False):
                 deathdays = await self.hass.async_add_executor_job(self.api.get_deathdays)
                 self.hass.data.setdefault(f"{DOMAIN}_deathdays", {})[self.entry.entry_id] = deathdays or []
+                _LOGGER.debug(
+                    "Deathdays fetched: %s entries%s",
+                    len(deathdays) if deathdays else 0,
+                    f" | first: {deathdays[0]}" if deathdays else "",
+                )
+            else:
+                _LOGGER.debug("Deathdays disabled in config; skipping fetch")
             
             # Fetch anniversaries if enabled
             if self.entry.data.get("show_anniversaries", False):
                 anniversaries = await self.hass.async_add_executor_job(self.api.get_anniversaries)
                 self.hass.data.setdefault(f"{DOMAIN}_anniversaries", {})[self.entry.entry_id] = anniversaries or []
+                _LOGGER.debug(
+                    "Anniversaries fetched: %s entries%s",
+                    len(anniversaries) if anniversaries else 0,
+                    f" | first: {anniversaries[0]}" if anniversaries else "",
+                )
+            else:
+                _LOGGER.debug("Anniversaries disabled in config; skipping fetch")
             
             # Store current list for next comparison
             self.last_birthdays = data or []

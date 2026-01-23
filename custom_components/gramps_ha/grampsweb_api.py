@@ -622,17 +622,26 @@ class GrampsWebAPI:
                 return []
 
             deathdays = []
+            candidates = 0
 
             for person in all_people:
                 self._ensure_person_events(person)
 
                 if self._has_death_date(person):
+                    candidates += 1
                     deathday = self._calculate_next_deathday(person)
                     if deathday:
                         deathdays.append(deathday)
 
             # Sort by days until deathday
             deathdays.sort(key=lambda x: x.get("days_until", 999))
+
+            _LOGGER.info(
+                "Deathdays result: %s candidates with death dates, %s entries after calculation%s",
+                candidates,
+                len(deathdays),
+                f" | first: {deathdays[0]}" if deathdays else "",
+            )
 
             # Return limited list
             return deathdays[:limit]
@@ -652,12 +661,14 @@ class GrampsWebAPI:
                 return []
 
             anniversaries = []
+            marriage_events = 0
 
             for person in all_people:
                 self._ensure_person_events(person)
 
                 # Look for marriage events
                 marriage_dates = self._get_marriage_dates(person)
+                marriage_events += len(marriage_dates)
                 for spouse_name, marriage_date in marriage_dates:
                     person_name = self._get_person_name(person)
                     anniversary = self._calculate_anniversary(person_name, spouse_name, marriage_date)
@@ -666,6 +677,13 @@ class GrampsWebAPI:
 
             # Sort by days until anniversary
             anniversaries.sort(key=lambda x: x.get("days_until", 999))
+
+            _LOGGER.info(
+                "Anniversaries result: %s marriage events, %s entries after calculation%s",
+                marriage_events,
+                len(anniversaries),
+                f" | first: {anniversaries[0]}" if anniversaries else "",
+            )
 
             # Return limited list
             return anniversaries[:limit]
