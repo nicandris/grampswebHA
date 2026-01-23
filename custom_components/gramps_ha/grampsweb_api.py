@@ -628,10 +628,17 @@ class GrampsWebAPI:
                 _LOGGER.warning("Unexpected response type for people: %s", type(all_people))
                 return []
 
+            _LOGGER.info("Checking %s people for death dates...", len(all_people))
+            
             deathdays = []
             candidates = 0
+            no_death_ref = 0
+            failed_calculation = 0
 
-            for person in all_people:
+            for idx, person in enumerate(all_people):
+                if idx % 50 == 0:
+                    _LOGGER.debug("Processed %s/%s people for deathdays...", idx, len(all_people))
+                    
                 self._ensure_person_events(person)
 
                 if self._has_death_date(person):
@@ -639,13 +646,20 @@ class GrampsWebAPI:
                     deathday = self._calculate_next_deathday(person)
                     if deathday:
                         deathdays.append(deathday)
+                    else:
+                        failed_calculation += 1
+                else:
+                    no_death_ref += 1
 
             # Sort by days until deathday
             deathdays.sort(key=lambda x: x.get("days_until", 999))
 
             _LOGGER.info(
-                "Deathdays result: %s candidates with death dates, %s entries after calculation%s",
+                "Deathdays result: %s total people, %s without death_ref_index, %s candidates with death dates, %s failed calculation, %s entries after success%s",
+                len(all_people),
+                no_death_ref,
                 candidates,
+                failed_calculation,
                 len(deathdays),
                 f" | first: {deathdays[0]}" if deathdays else "",
             )
@@ -702,30 +716,43 @@ class GrampsWebAPI:
     def _has_death_date(self, person: dict) -> bool:
         """Check if person has a death date."""
         try:
+            person_name = self._get_person_name(person)
             death_ref_index = person.get("death_ref_index", -1)
+            
             if death_ref_index < 0:
+                _LOGGER.debug("Person %s: no death_ref_index (value: %s)", person_name, death_ref_index)
                 return False
 
             event_ref_list = person.get("event_ref_list", [])
             if death_ref_index >= len(event_ref_list):
+                _LOGGER.debug("Person %s: death_ref_index %s out of range (event_ref_list length: %s)", 
+                             person_name, death_ref_index, len(event_ref_list))
                 return False
 
             death_ref = event_ref_list[death_ref_index]
             handle = death_ref.get("ref") or death_ref.get("handle") or death_ref.get("hlink")
 
             if not handle:
+                _LOGGER.debug("Person %s: no handle in death_ref", person_name)
                 return False
 
             event = self._get_event(handle)
             if not event:
+                _LOGGER.debug("Person %s: could not fetch event with handle %s", person_name, handle)
                 return False
 
             dateval = event.get("date", {})
             parsed = self._parse_dateval(dateval.get("val") if isinstance(dateval, dict) else dateval)
+            
+            if not parsed:
+                _LOGGER.debug("Person %s: could not parse death date from %s", person_name, dateval)
+                return False
+            
+            _LOGGER.debug("Person %s: has death date %s", person_name, parsed)
             return bool(parsed)
 
         except Exception as err:
-            _LOGGER.debug("Error checking death date: %s", err)
+            _LOGGER.debug("Error checking death date for %s: %s", person.get("handle", "unknown"), err)
             return False
 
     def _get_marriage_dates(self, person: dict) -> list:
