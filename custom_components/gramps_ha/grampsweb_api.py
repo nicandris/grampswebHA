@@ -774,6 +774,17 @@ class GrampsWebAPI:
                 _LOGGER.debug("Person %s: could not fetch event with handle %s", person_name, handle)
                 return False
 
+            # Verify this is actually a Death event
+            event_type = event.get("type", {})
+            type_string = (
+                event_type.get("string", "")
+                if isinstance(event_type, dict)
+                else str(event_type)
+            )
+            if "death" not in type_string.lower():
+                _LOGGER.debug("Person %s: event type is '%s', not Death", person_name, type_string)
+                return False
+
             dateval = event.get("date", {})
             parsed = self._parse_dateval(dateval.get("val") if isinstance(dateval, dict) else dateval)
             
@@ -781,7 +792,7 @@ class GrampsWebAPI:
                 _LOGGER.debug("Person %s: could not parse death date from %s", person_name, dateval)
                 return False
             
-            _LOGGER.debug("Person %s: has death date %s", person_name, parsed)
+            _LOGGER.debug("Person %s: has death date %s (event type: %s)", person_name, parsed, type_string)
             return bool(parsed)
 
         except Exception as err:
@@ -878,6 +889,18 @@ class GrampsWebAPI:
 
             event = self._get_event(handle)
             if not event:
+                return None
+
+            # Verify this is actually a Death event
+            event_type = event.get("type", {})
+            type_string = (
+                event_type.get("string", "")
+                if isinstance(event_type, dict)
+                else str(event_type)
+            )
+            if "death" not in type_string.lower():
+                name = self._get_person_name(person)
+                _LOGGER.debug("Person %s: death_ref_index points to non-Death event type: %s", name, type_string)
                 return None
 
             dateval = event.get("date", {})
