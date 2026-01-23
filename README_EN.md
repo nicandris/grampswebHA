@@ -13,7 +13,7 @@ And if you already have a family tree, you might as well display family birthday
 - 🎂 Displays the next 6 birthdays
 - 📅 Automatically calculates days until the next birthday
 - 🎉 Shows the person's age on their upcoming birthday
-- 🧩 Three sensors per birthday: Name, Age, Date
+- 🧩 Four sensors per birthday: Name, Age, Date, Days Remaining
 - 🔄 Automatic updates every 6 hours
 - 🔐 Supports authenticated and public Gramps Web instances
 - 🌍 Translations: German, English, French, Italian, Bosnian
@@ -63,16 +63,16 @@ rm -rf temp
 
 The integration creates the following sensors:
 
-### Next Birthdays (Name/Age/Date each)
+### Next Birthdays (Name/Age/Date/Days each)
 
-For the next 6 birthdays, three sensors are created each:
+For the next 6 birthdays, four sensors are created each:
 
-- `sensor.next_birthday_1_name`, `sensor.next_birthday_1_age`, `sensor.next_birthday_1_date`
-- `sensor.next_birthday_2_name`, `sensor.next_birthday_2_age`, `sensor.next_birthday_2_date`
-- `sensor.next_birthday_3_name`, `sensor.next_birthday_3_age`, `sensor.next_birthday_3_date`
-- `sensor.next_birthday_4_name`, `sensor.next_birthday_4_age`, `sensor.next_birthday_4_date`
-- `sensor.next_birthday_5_name`, `sensor.next_birthday_5_age`, `sensor.next_birthday_5_date`
-- `sensor.next_birthday_6_name`, `sensor.next_birthday_6_age`, `sensor.next_birthday_6_date`
+- `sensor.next_birthday_1_name`, `sensor.next_birthday_1_age`, `sensor.next_birthday_1_date`, `sensor.next_birthday_1_days`
+- `sensor.next_birthday_2_name`, `sensor.next_birthday_2_age`, `sensor.next_birthday_2_date`, `sensor.next_birthday_2_days`
+- `sensor.next_birthday_3_name`, `sensor.next_birthday_3_age`, `sensor.next_birthday_3_date`, `sensor.next_birthday_3_days`
+- `sensor.next_birthday_4_name`, `sensor.next_birthday_4_age`, `sensor.next_birthday_4_date`, `sensor.next_birthday_4_days`
+- `sensor.next_birthday_5_name`, `sensor.next_birthday_5_age`, `sensor.next_birthday_5_date`, `sensor.next_birthday_5_days`
+- `sensor.next_birthday_6_name`, `sensor.next_birthday_6_age`, `sensor.next_birthday_6_date`, `sensor.next_birthday_6_days`
 
 Note: Sensor IDs may vary slightly depending on your system. Check the exact entities under Settings → Devices & Services → Entities.
 
