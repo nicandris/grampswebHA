@@ -801,18 +801,33 @@ class GrampsWebAPI:
                     if anniversary:
                         anniversaries.append(anniversary)
 
+            # Deduplicate anniversaries: same marriage date with "Unknown" spouse
+            # likely means the same couple entered twice
+            # Keep only one entry per unique marriage date
+            seen_by_date = {}
+            deduplicated = []
+            
+            for anniversary in anniversaries:
+                date_key = anniversary.get("marriage_date")
+                
+                if date_key not in seen_by_date:
+                    # First time seeing this date, keep it
+                    seen_by_date[date_key] = anniversary
+                    deduplicated.append(anniversary)
+                # else: skip duplicate (same marriage date we've already added)
+
             # Sort by days until anniversary
-            anniversaries.sort(key=lambda x: x.get("days_until", 999))
+            deduplicated.sort(key=lambda x: x.get("days_until", 999))
 
             _LOGGER.info(
-                "Anniversaries result: %s marriage events, %s entries after calculation%s",
+                "Anniversaries result: %s marriage events, %s entries after deduplication%s",
                 marriage_events,
-                len(anniversaries),
-                f" | first: {anniversaries[0]}" if anniversaries else "",
+                len(deduplicated),
+                f" | first: {deduplicated[0]}" if deduplicated else "",
             )
 
             # Return limited list
-            return anniversaries[:limit]
+            return deduplicated[:limit]
 
         except Exception as err:
             _LOGGER.error("Failed to get anniversaries: %s", err, exc_info=True)
