@@ -669,7 +669,8 @@ class GrampsWebAPI:
                 # Look for marriage events
                 marriage_dates = self._get_marriage_dates(person)
                 for spouse_name, marriage_date in marriage_dates:
-                    anniversary = self._calculate_anniversary(person.get("primary_name", {}).get("name_suffix", "?"), spouse_name, marriage_date)
+                    person_name = self._get_person_name(person)
+                    anniversary = self._calculate_anniversary(person_name, spouse_name, marriage_date)
                     if anniversary:
                         anniversaries.append(anniversary)
 
@@ -716,6 +717,7 @@ class GrampsWebAPI:
         marriage_dates = []
         try:
             event_ref_list = person.get("event_ref_list", [])
+            person_handle = person.get("handle", "")
 
             for event_ref in event_ref_list:
                 event_handle = event_ref.get("ref") or event_ref.get("handle") or event_ref.get("hlink")
@@ -744,12 +746,19 @@ class GrampsWebAPI:
                     if not family:
                         continue
 
-                    # Get spouse from family
-                    for spouse_ref in family.get("parent_rel_list", []):
-                        spouse_person = self._get(f"people/{spouse_ref.get('ref')}")
-                        if spouse_person:
-                            spouse_name = spouse_person.get("primary_name", {}).get("name_suffix", "?")
-                            marriage_dates.append((spouse_name, dateval))
+                    # Get spouse from family - look for other parent
+                    for child_rel in family.get("child_rel_list", []):
+                        if child_rel.get("ref") == person_handle:
+                            continue  # Skip self
+                        spouse_handle = child_rel.get("ref") or child_rel.get("handle")
+                        if spouse_handle:
+                            try:
+                                spouse_person = self._get(f"people/{spouse_handle}")
+                                if spouse_person:
+                                    spouse_name = self._get_person_name(spouse_person)
+                                    marriage_dates.append((spouse_name, dateval))
+                            except Exception:
+                                continue
 
             return marriage_dates
 
@@ -803,7 +812,7 @@ class GrampsWebAPI:
 
             days_until = (next_deathday - today).days
 
-            name = person.get("primary_name", {}).get("name_suffix", "Unknown")
+            name = self._get_person_name(person)
             years_ago = today.year - death_date.year
 
             return {
