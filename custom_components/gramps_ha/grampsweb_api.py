@@ -920,13 +920,20 @@ class GrampsWebAPI:
             families = person.get("family_list", [])
 
             # Collect possible spouse handles from families
+            # family_list contains STRINGS (handles), not dictionaries!
             spouse_handles = set()
-            for family_ref in families:
-                family_handle = (
-                    family_ref.get("ref")
-                    or family_ref.get("handle")
-                    or family_ref.get("hlink")
-                )
+            for family_handle_or_ref in families:
+                # If it's a dict, extract handle; if it's a string, use directly
+                if isinstance(family_handle_or_ref, dict):
+                    family_handle = (
+                        family_handle_or_ref.get("ref")
+                        or family_handle_or_ref.get("handle")
+                        or family_handle_or_ref.get("hlink")
+                    )
+                else:
+                    # It's a string (the handle directly)
+                    family_handle = family_handle_or_ref
+
                 if not family_handle:
                     continue
 
@@ -989,6 +996,10 @@ class GrampsWebAPI:
 
             # Also process any marriage events directly attached to the person
             for event_ref in event_ref_list:
+                # event_ref_list should contain dicts with .get() method
+                if not isinstance(event_ref, dict):
+                    continue
+
                 event_handle = (
                     event_ref.get("ref")
                     or event_ref.get("handle")
@@ -1143,11 +1154,16 @@ class GrampsWebAPI:
             return None
 
     def _calculate_anniversary(
-        self, person1_name: str, person2_name: str, dateval: dict
+        self, person1_name: str, person2_name: str, dateval
     ) -> dict | None:
         """Calculate next anniversary for a couple."""
         try:
-            marriage_date = self._parse_dateval(dateval)
+            # dateval can already be a date object (from _get_marriage_dates)
+            # or it can be a dict/list that needs parsing
+            if isinstance(dateval, date):
+                marriage_date = dateval
+            else:
+                marriage_date = self._parse_dateval(dateval)
 
             if not marriage_date:
                 return None
