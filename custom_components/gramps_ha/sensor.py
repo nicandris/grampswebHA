@@ -53,6 +53,7 @@ async def async_setup_entry(
         sensors.append(GrampsWebNextBirthdayUpcomingDateSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayDaysUntilSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayImageSensor(coordinator, entry, i))
+        sensors.append(GrampsWebNextBirthdayLinkSensor(coordinator, entry, i))
 
     # Deathday sensors (if enabled)
     if show_deathdays:
@@ -62,6 +63,7 @@ async def async_setup_entry(
             sensors.append(GrampsWebNextDeathdayUpcomingDateSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextDeathdayYearsAgoSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextDeathdayDaysUntilSensor(coordinator, entry, i))
+            sensors.append(GrampsWebNextDeathdayLinkSensor(coordinator, entry, i))
 
     # Anniversary sensors (if enabled)
     if show_anniversaries:
@@ -71,6 +73,7 @@ async def async_setup_entry(
             sensors.append(GrampsWebNextAnniversaryDateSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextAnniversaryUpcomingDateSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextAnniversaryDaysUntilSensor(coordinator, entry, i))
+            sensors.append(GrampsWebNextAnniversaryLinkSensor(coordinator, entry, i))
 
     sensors.append(GrampsWebAllBirthdaysSensor(coordinator, entry))
 
@@ -277,6 +280,31 @@ class GrampsWebNextBirthdayImageSensor(GrampsWebNextBirthdayBase):
         if not birthday:
             return None
         return birthday.get("image_url")
+
+
+class GrampsWebNextBirthdayLinkSensor(GrampsWebNextBirthdayBase):
+    """Next birthday sensor showing Gramps Web link."""
+
+    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+        super().__init__(coordinator, entry, index)
+        self._attr_name = f"Next Birthday {index + 1} Link"
+        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_link"
+        self._entry = entry
+
+    @property
+    def native_value(self):
+        birthday = self._get_birthday()
+        if not birthday:
+            return None
+        person_handle = birthday.get("person_handle")
+        if not person_handle:
+            return None
+        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
+        return f"{base_url}/person/{person_handle}"
+
+    @property
+    def icon(self):
+        return "mdi:link"
 
 
 class GrampsWebAllBirthdaysSensor(CoordinatorEntity, SensorEntity):
@@ -507,6 +535,33 @@ class GrampsWebNextDeathdayDaysUntilSensor(GrampsWebNextDeathdayBase):
         return "mdi:calendar-clock"
 
 
+class GrampsWebNextDeathdayLinkSensor(GrampsWebNextDeathdayBase):
+    """Next deathday sensor showing Gramps Web link."""
+
+    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+        super().__init__(coordinator, entry, index)
+        self._attr_name = f"Next Deathday {index + 1} Link"
+        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_link"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
+        deathday_list = deathdays.get(self._entry.entry_id, [])
+        if self._index >= len(deathday_list):
+            return None
+        person_handle = deathday_list[self._index].get("person_handle")
+        if not person_handle:
+            return None
+        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
+        return f"{base_url}/person/{person_handle}"
+
+    @property
+    def icon(self):
+        return "mdi:link"
+
+
 class GrampsWebNextAnniversaryNameSensor(GrampsWebNextAnniversaryBase):
     """Next anniversary sensor showing names."""
 
@@ -642,3 +697,30 @@ class GrampsWebNextAnniversaryDaysUntilSensor(GrampsWebNextAnniversaryBase):
     @property
     def icon(self):
         return "mdi:calendar-clock"
+
+
+class GrampsWebNextAnniversaryLinkSensor(GrampsWebNextAnniversaryBase):
+    """Next anniversary sensor showing Gramps Web link to family."""
+
+    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+        super().__init__(coordinator, entry, index)
+        self._attr_name = f"Next Anniversary {index + 1} Link"
+        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_link"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
+        anniversary_list = anniversaries.get(self._entry.entry_id, [])
+        if self._index >= len(anniversary_list):
+            return None
+        family_handle = anniversary_list[self._index].get("family_handle")
+        if not family_handle:
+            return None
+        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
+        return f"{base_url}/family/{family_handle}"
+
+    @property
+    def icon(self):
+        return "mdi:link"

@@ -650,10 +650,12 @@ class GrampsWebAPI:
             days_until = (next_birthday - today).days
             age = next_birthday.year - birth_date.year
 
-            # Get image URL if person data is provided
+            # Get image URL and handle if person data is provided
             image_url = None
+            person_handle = None
             if person:
                 image_url = self._get_person_image_url(person)
+                person_handle = person.get("handle")
 
             result = {
                 "person_name": name,
@@ -665,6 +667,8 @@ class GrampsWebAPI:
 
             if image_url:
                 result["image_url"] = image_url
+            if person_handle:
+                result["person_handle"] = person_handle
 
             return result
 
@@ -798,7 +802,7 @@ class GrampsWebAPI:
                 # Look for marriage events
                 marriage_dates = self._get_marriage_dates(person)
                 marriage_events += len(marriage_dates)
-                for spouse_name, marriage_date, event_handle in marriage_dates:
+                for spouse_name, marriage_date, event_handle, family_handle in marriage_dates:
                     key = (str(marriage_date), event_handle)
                     
                     if key not in anniversaries_with_events:
@@ -807,6 +811,7 @@ class GrampsWebAPI:
                             "marriage_date": marriage_date,
                             "event_handle": event_handle,
                             "spouse_name": spouse_name,
+                            "family_handle": family_handle,
                         }
                     
                     anniversaries_with_events[key]["person_names"].add(person_name)
@@ -824,6 +829,7 @@ class GrampsWebAPI:
                 # Get the list of people for this event
                 person_names = sorted(data["person_names"])
                 marriage_date = data["marriage_date"]
+                family_handle = data.get("family_handle")
                 
                 # Create anniversary entry
                 if len(person_names) >= 2:
@@ -838,7 +844,8 @@ class GrampsWebAPI:
                 anniversary = self._calculate_anniversary(
                     combined_name.split(" & ")[0],
                     combined_name.split(" & ")[1] if " & " in combined_name else data["spouse_name"] or "Unknown",
-                    marriage_date
+                    marriage_date,
+                    family_handle
                 )
                 if anniversary:
                     # Update the person_name to the combined version
@@ -958,7 +965,7 @@ class GrampsWebAPI:
     def _get_marriage_dates(self, person: dict) -> list:
         """Get all marriage dates from person and family events.
         
-        Returns list of tuples: (spouse_name_or_none, marriage_date, event_handle)
+        Returns list of tuples: (spouse_name_or_none, marriage_date, event_handle, family_handle)
         where event_handle is used to find the partner later.
         """
         marriage_dates = []
@@ -1040,7 +1047,7 @@ class GrampsWebAPI:
                                     spouse_name = self._get_person_name(spouse_person)
                             except Exception:
                                 spouse_name = None
-                        marriage_dates.append((spouse_name, parsed_dateval, ev_handle))
+                        marriage_dates.append((spouse_name, parsed_dateval, ev_handle, family_handle))
 
             # Also process any marriage events directly attached to the person
             for event_ref in event_ref_list:
@@ -1189,6 +1196,7 @@ class GrampsWebAPI:
 
             name = self._get_person_name(person)
             years_ago = today.year - death_date.year
+            person_handle = person.get("handle")
 
             return {
                 "person_name": name,
@@ -1196,6 +1204,7 @@ class GrampsWebAPI:
                 "next_deathday": next_deathday.isoformat(),
                 "years_ago": years_ago,
                 "days_until": days_until,
+                "person_handle": person_handle,
             }
 
         except Exception as err:
@@ -1203,7 +1212,7 @@ class GrampsWebAPI:
             return None
 
     def _calculate_anniversary(
-        self, person1_name: str, person2_name: str, dateval
+        self, person1_name: str, person2_name: str, dateval, family_handle: str = None
     ) -> dict | None:
         """Calculate next anniversary for a couple."""
         try:
@@ -1232,13 +1241,18 @@ class GrampsWebAPI:
             else:
                 person_name_str = person1_name
 
-            return {
+            result = {
                 "person_name": person_name_str,
                 "marriage_date": marriage_date.isoformat(),
                 "next_anniversary": next_anniversary.isoformat(),
                 "years_together": years_together,
                 "days_until": days_until,
             }
+
+            if family_handle:
+                result["family_handle"] = family_handle
+
+            return result
 
         except Exception as err:
             _LOGGER.debug("Could not calculate anniversary: %s", err)
