@@ -189,7 +189,7 @@ class GrampsWebNextBirthdayDateSensor(GrampsWebNextBirthdayBase):
             try:
                 dt = datetime.fromisoformat(birth_date)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.hass.config.get('language', 'en')
+                locale = getattr(self.hass.config, 'language', 'en')
                 _LOGGER.debug(f"Birthday {self._index}: birth_date={birth_date}, locale={locale}")
                 if locale in ['de', 'de_DE']:
                     result = dt.strftime("%d.%m.%Y")
@@ -230,7 +230,7 @@ class GrampsWebNextBirthdayUpcomingDateSensor(GrampsWebNextBirthdayBase):
             try:
                 dt = datetime.fromisoformat(next_birthday)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.hass.config.get('language', 'en')
+                locale = getattr(self.hass.config, 'language', 'en')
                 _LOGGER.debug(f"Birthday Upcoming {self._index}: next_birthday={next_birthday}, locale={locale}")
                 if locale in ['de', 'de_DE']:
                     result = dt.strftime("%d.%m.%Y")
@@ -437,7 +437,7 @@ class GrampsWebNextDeathdayDateSensor(GrampsWebNextDeathdayBase):
             try:
                 dt = datetime.fromisoformat(death_date)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.hass.config.get('language', 'en')
+                locale = getattr(self.hass.config, 'language', 'en')
                 _LOGGER.debug(f"Deathday {self._index}: death_date={death_date}, locale={locale}")
                 if locale in ['de', 'de_DE']:
                     result = dt.strftime("%d.%m.%Y")
@@ -480,7 +480,7 @@ class GrampsWebNextDeathdayUpcomingDateSensor(GrampsWebNextDeathdayBase):
             try:
                 dt = datetime.fromisoformat(next_deathday)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.hass.config.get('language', 'en')
+                locale = getattr(self.hass.config, 'language', 'en')
                 _LOGGER.debug(f"Deathday Upcoming {self._index}: next_deathday={next_deathday}, locale={locale}")
                 if locale in ['de', 'de_DE']:
                     result = dt.strftime("%d.%m.%Y")
@@ -617,7 +617,7 @@ class GrampsWebNextAnniversaryDateSensor(GrampsWebNextAnniversaryBase):
             try:
                 dt = datetime.fromisoformat(marriage_date)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.hass.config.get('language', 'en')
+                locale = getattr(self.hass.config, 'language', 'en')
                 _LOGGER.debug(f"Anniversary {self._index}: marriage_date={marriage_date}, locale={locale}")
                 if locale in ['de', 'de_DE']:
                     result = dt.strftime("%d.%m.%Y")
@@ -660,7 +660,7 @@ class GrampsWebNextAnniversaryUpcomingDateSensor(GrampsWebNextAnniversaryBase):
             try:
                 dt = datetime.fromisoformat(next_anniversary)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.hass.config.get('language', 'en')
+                locale = getattr(self.hass.config, 'language', 'en')
                 _LOGGER.debug(f"Anniversary Upcoming {self._index}: next_anniversary={next_anniversary}, locale={locale}")
                 if locale in ['de', 'de_DE']:
                     result = dt.strftime("%d.%m.%Y")
