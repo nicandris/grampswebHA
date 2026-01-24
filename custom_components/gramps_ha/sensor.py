@@ -189,12 +189,18 @@ class GrampsWebNextBirthdayDateSensor(GrampsWebNextBirthdayBase):
             try:
                 dt = datetime.fromisoformat(birth_date)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.coordinator.hass.config.get('language', 'en')
+                locale = self.hass.config.get('language', 'en')
+                _LOGGER.debug(f"Birthday {self._index}: birth_date={birth_date}, locale={locale}")
                 if locale in ['de', 'de_DE']:
-                    return dt.strftime("%d.%m.%Y")
+                    result = dt.strftime("%d.%m.%Y")
+                    _LOGGER.debug(f"Birthday {self._index}: returning German format {result}")
+                    return result
                 # Default ISO format for other locales
-                return dt.date().isoformat()
-            except Exception:
+                result = dt.date().isoformat()
+                _LOGGER.debug(f"Birthday {self._index}: returning ISO format {result}")
+                return result
+            except Exception as e:
+                _LOGGER.error(f"Birthday {self._index}: Error formatting date {birth_date}: {e}")
                 return None
         return None
 
@@ -224,12 +230,18 @@ class GrampsWebNextBirthdayUpcomingDateSensor(GrampsWebNextBirthdayBase):
             try:
                 dt = datetime.fromisoformat(next_birthday)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.coordinator.hass.config.get('language', 'en')
+                locale = self.hass.config.get('language', 'en')
+                _LOGGER.debug(f"Birthday Upcoming {self._index}: next_birthday={next_birthday}, locale={locale}")
                 if locale in ['de', 'de_DE']:
-                    return dt.strftime("%d.%m.%Y")
+                    result = dt.strftime("%d.%m.%Y")
+                    _LOGGER.debug(f"Birthday Upcoming {self._index}: returning German format {result}")
+                    return result
                 # Default ISO format for other locales
-                return dt.date().isoformat()
-            except Exception:
+                result = dt.date().isoformat()
+                _LOGGER.debug(f"Birthday Upcoming {self._index}: returning ISO format {result}")
+                return result
+            except Exception as e:
+                _LOGGER.error(f"Birthday Upcoming {self._index}: Error formatting date {next_birthday}: {e}")
                 return None
         return None
 
@@ -425,12 +437,18 @@ class GrampsWebNextDeathdayDateSensor(GrampsWebNextDeathdayBase):
             try:
                 dt = datetime.fromisoformat(death_date)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.coordinator.hass.config.get('language', 'en')
+                locale = self.hass.config.get('language', 'en')
+                _LOGGER.debug(f"Deathday {self._index}: death_date={death_date}, locale={locale}")
                 if locale in ['de', 'de_DE']:
-                    return dt.strftime("%d.%m.%Y")
+                    result = dt.strftime("%d.%m.%Y")
+                    _LOGGER.debug(f"Deathday {self._index}: returning German format {result}")
+                    return result
                 # Default ISO format for other locales
-                return dt.date().isoformat()
-            except Exception:
+                result = dt.date().isoformat()
+                _LOGGER.debug(f"Deathday {self._index}: returning ISO format {result}")
+                return result
+            except Exception as e:
+                _LOGGER.error(f"Deathday {self._index}: Error formatting date {death_date}: {e}")
                 return None
         return None
 
@@ -462,12 +480,18 @@ class GrampsWebNextDeathdayUpcomingDateSensor(GrampsWebNextDeathdayBase):
             try:
                 dt = datetime.fromisoformat(next_deathday)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.coordinator.hass.config.get('language', 'en')
+                locale = self.hass.config.get('language', 'en')
+                _LOGGER.debug(f"Deathday Upcoming {self._index}: next_deathday={next_deathday}, locale={locale}")
                 if locale in ['de', 'de_DE']:
-                    return dt.strftime("%d.%m.%Y")
+                    result = dt.strftime("%d.%m.%Y")
+                    _LOGGER.debug(f"Deathday Upcoming {self._index}: returning German format {result}")
+                    return result
                 # Default ISO format for other locales
-                return dt.date().isoformat()
-            except Exception:
+                result = dt.date().isoformat()
+                _LOGGER.debug(f"Deathday Upcoming {self._index}: returning ISO format {result}")
+                return result
+            except Exception as e:
+                _LOGGER.error(f"Deathday Upcoming {self._index}: Error formatting date {next_deathday}: {e}")
                 return None
         return None
 
@@ -593,12 +617,18 @@ class GrampsWebNextAnniversaryDateSensor(GrampsWebNextAnniversaryBase):
             try:
                 dt = datetime.fromisoformat(marriage_date)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.coordinator.hass.config.get('language', 'en')
+                locale = self.hass.config.get('language', 'en')
+                _LOGGER.debug(f"Anniversary {self._index}: marriage_date={marriage_date}, locale={locale}")
                 if locale in ['de', 'de_DE']:
-                    return dt.strftime("%d.%m.%Y")
+                    result = dt.strftime("%d.%m.%Y")
+                    _LOGGER.debug(f"Anniversary {self._index}: returning German format {result}")
+                    return result
                 # Default ISO format for other locales
-                return dt.date().isoformat()
-            except Exception:
+                result = dt.date().isoformat()
+                _LOGGER.debug(f"Anniversary {self._index}: returning ISO format {result}")
+                return result
+            except Exception as e:
+                _LOGGER.error(f"Anniversary {self._index}: Error formatting date {marriage_date}: {e}")
                 return None
         return None
 
@@ -630,12 +660,18 @@ class GrampsWebNextAnniversaryUpcomingDateSensor(GrampsWebNextAnniversaryBase):
             try:
                 dt = datetime.fromisoformat(next_anniversary)
                 # For German locale, format as dd.mm.yyyy
-                locale = self.coordinator.hass.config.get('language', 'en')
+                locale = self.hass.config.get('language', 'en')
+                _LOGGER.debug(f"Anniversary Upcoming {self._index}: next_anniversary={next_anniversary}, locale={locale}")
                 if locale in ['de', 'de_DE']:
-                    return dt.strftime("%d.%m.%Y")
+                    result = dt.strftime("%d.%m.%Y")
+                    _LOGGER.debug(f"Anniversary Upcoming {self._index}: returning German format {result}")
+                    return result
                 # Default ISO format for other locales
-                return dt.date().isoformat()
-            except Exception:
+                result = dt.date().isoformat()
+                _LOGGER.debug(f"Anniversary Upcoming {self._index}: returning ISO format {result}")
+                return result
+            except Exception as e:
+                _LOGGER.error(f"Anniversary Upcoming {self._index}: Error formatting date {next_anniversary}: {e}")
                 return None
         return None
 
