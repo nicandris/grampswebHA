@@ -10,21 +10,17 @@ And if you already have a family tree, you might as well display family birthday
 
 ## Features
 
-- 🎂 Displays the next 6 birthdays
+- 🎂 Displays the next 10 birthdays
 - 📅 Automatically calculates days until the next birthday
 - 🎉 Shows the person's age on their upcoming birthday
-- 🧩 Five sensors per birthday: Name, Age, Date, Days Remaining, Image
+- 🧩 7 sensors per birthday: Name, Age, Date, Upcoming Date, Days Remaining, Image, Link
 - 🖼️ Downloads profile pictures from Gramps Web (if available)
+- 🔗 Direct links to persons and families in Gramps Web
 - 🔄 Automatic updates every 6 hours
 - 🔐 Supports authenticated and public Gramps Web instances
-- 🌍 Translations: German, English, French, Italian, Bosnian
-- 🔔 Notifications for new upcoming birthdays in the list
-- 🎺 Notifications when someone has a birthday tomorrow
-- 🪦 **Optional: Displays upcoming memorial dates/death anniversaries** (can be enabled in configuration)
-- 💍 **Optional: Displays upcoming wedding anniversaries/marriage dates** (can be enabled in configuration)
-- 👤 Surname filter for targeted display
-- 🔔 Notifications when new birthdays are added to the list
-- 🎺 Notifications when someone has a birthday tomorrow
+- 🪦 **Optional: Displays upcoming 10 memorial dates/death anniversaries** (with image and link)
+- 💍 **Optional: Displays upcoming 10 wedding anniversaries** (with images of both partners and family link)
+- 🌍 Multilingual: German, English, French, Italian, Bosnian
 
 ## Installation
 
@@ -64,34 +60,27 @@ rm -rf temp
    - **URL**: The URL of your Gramps Web instance (e.g., `https://my-gramps.example.com`)
    - **Username**: (optional) Your Gramps Web username
    - **Password**: (optional) Your Gramps Web password
-   - **Number of Birthdays**: (optional, default: 6) How many birthdays to display
+   - **Number of Birthdays**: (optional, default: 10) Number of birthdays/deathdays/anniversaries to display
    - **Show Deathdays**: (optional, default: No) Show upcoming memorial/death dates
    - **Show Anniversaries**: (optional, default: No) Show upcoming wedding anniversaries
 
 ## Sensors
 
-The integration creates the following sensors:
+The integration automatically creates 10 sensors per type (birthdays, deathdays, anniversaries), even if fewer data is available. Sensors without data show default values.
 
-### Next Birthdays (Name/Age/Date/Days/Image each)
+### Next Birthdays
 
-For the next 6 birthdays, five sensors are created each:
+For the next 10 birthdays, 7 sensors are created each:
 
-- `sensor.next_birthday_1_name`, `sensor.next_birthday_1_age`, `sensor.next_birthday_1_date`, `sensor.next_birthday_1_days_until`, `sensor.next_birthday_1_image`
-- `sensor.next_birthday_2_name`, `sensor.next_birthday_2_age`, `sensor.next_birthday_2_date`, `sensor.next_birthday_2_days_until`, `sensor.next_birthday_2_image`
-- `sensor.next_birthday_3_name`, `sensor.next_birthday_3_age`, `sensor.next_birthday_3_date`, `sensor.next_birthday_3_days_until`, `sensor.next_birthday_3_image`
-- `sensor.next_birthday_4_name`, `sensor.next_birthday_4_age`, `sensor.next_birthday_4_date`, `sensor.next_birthday_4_days_until`, `sensor.next_birthday_4_image`
-- `sensor.next_birthday_5_name`, `sensor.next_birthday_5_age`, `sensor.next_birthday_5_date`, `sensor.next_birthday_5_days_until`, `sensor.next_birthday_5_image`
-- `sensor.next_birthday_6_name`, `sensor.next_birthday_6_age`, `sensor.next_birthday_6_date`, `sensor.next_birthday_6_days_until`, `sensor.next_birthday_6_image`
+1. **Name** (`sensor.next_birthday_X_name`) - Person's name
+2. **Age** (`sensor.next_birthday_X_age`) - Age on next birthday
+3. **Date** (`sensor.next_birthday_X_date`) - Birth date (format: dd.mm.yyyy)
+4. **Upcoming Date** (`sensor.next_birthday_X_upcoming_date`) - Date of next birthday (format: dd.mm.yyyy)
+5. **Days Remaining** (`sensor.next_birthday_X_days_until`) - Days until birthday
+6. **Image** (`sensor.next_birthday_X_image`) - URL to profile picture (if available)
+7. **Link** (`sensor.next_birthday_X_link`) - Link to person in Gramps Web
 
-Note: Sensor IDs may vary slightly depending on your system. Check the exact entities under Settings → Devices & Services → Entities.
-
-All these sensors contain attributes with additional information:
-- `person_name`: Person's name
-- `birth_date`: Birth date
-- `age`: Age on upcoming birthday
-- `days_until`: Days until birthday
-- `next_birthday`: Date of next birthday (ISO format)
-- `image_url`: URL to profile picture (if available)
+All sensors contain additional attributes with detailed information.
 
 ### Next Deathdays/Memorial Dates (optional)
 
@@ -109,37 +98,36 @@ These sensors display:
 
 ### Next Wedding Anniversaries (optional)
 
-If the "Show Anniversaries" option is enabled, four sensors are created for each of the next 6 wedding anniversaries:
+### Next Deathdays/Memorial Dates (optional)
 
-- `sensor.next_anniversary_1_name`, `sensor.next_anniversary_1_date`, `sensor.next_anniversary_1_years_together`, `sensor.next_anniversary_1_days_until`
-- `sensor.next_anniversary_2_name`, `sensor.next_anniversary_2_date`, `sensor.next_anniversary_2_years_together`, `sensor.next_anniversary_2_days_until`
-- ... up to `sensor.next_anniversary_6_*`
+If the "Show Deathdays" option is enabled, 7 sensors are created for each of the next 10 memorial/death dates:
 
-These sensors display:
-- **name**: Names of the spouses
-- **date**: Marriage date
-- **years_together**: How many years the couple has been married
-- **days_until**: Days until the next anniversary
+1. **Name** (`sensor.next_deathday_X_name`) - Name of deceased person
+2. **Date** (`sensor.next_deathday_X_date`) - Death date (format: dd.mm.yyyy)
+3. **Upcoming Date** (`sensor.next_deathday_X_upcoming_date`) - Date of next memorial (format: dd.mm.yyyy)
+4. **Years Ago** (`sensor.next_deathday_X_years_ago`) - How many years since death
+5. **Days Remaining** (`sensor.next_deathday_X_days_until`) - Days until annual memorial
+6. **Image** (`sensor.next_deathday_X_image`) - URL to profile picture (if available)
+7. **Link** (`sensor.next_deathday_X_link`) - Link to person in Gramps Web
 
-Additionally, an aggregated sensor is provided:
+### Next Wedding Anniversaries (optional)
 
-- `sensor.all_upcoming_birthdays` – Count/list of all upcoming birthdays
+If the "Show Anniversaries" option is enabled, 8 sensors are created for each of the next 10 wedding anniversaries:
+
+1. **Name** (`sensor.next_anniversary_X_name`) - Names of spouses
+2. **Years Together** (`sensor.next_anniversary_X_years_together`) - How many years married
+3. **Date** (`sensor.next_anniversary_X_date`) - Marriage date (format: dd.mm.yyyy)
+4. **Upcoming Date** (`sensor.next_anniversary_X_upcoming_date`) - Date of next anniversary (format: dd.mm.yyyy)
+5. **Days Remaining** (`sensor.next_anniversary_X_days_until`) - Days until next anniversary
+6. **Image Person 1** (`sensor.next_anniversary_X_image_person1`) - URL to profile picture of first spouse
+7. **Image Person 2** (`sensor.next_anniversary_X_image_person2`) - URL to profile picture of second spouse
+8. **Link** (`sensor.next_anniversary_X_link`) - Link to family in Gramps Web
+
+**Important:** Image and Link sensors are disabled by default to avoid database bloat. You can manually enable them under "Settings → Devices & Services → Entities" if needed.
 
 ## Notifications
 
-The integration automatically sends notifications for the following events:
-
-### 🎂 New Birthday Detected
-- Triggered when a new person is added to the birthday list
-- Contains: Name, birth date, and age on upcoming birthday
-- Appears as a persistent notification in Home Assistant
-
-### 🎉 Birthday Tomorrow
-- Triggered when someone has a birthday tomorrow
-- Contains: Name and future age
-- Checked daily and notified
-
-Notifications can be managed under **Settings → Notifications**.
+The integration can optionally send notifications (currently experimental).
 
 ## Dashboard Configuration
 
@@ -211,10 +199,12 @@ This integration is under active development. Contributions are welcome!
 ### Planned Features
 
 - [x] Configurable number of birthdays
+- [x] Death anniversaries and memorial dates with images and links
+- [x] Wedding anniversaries with images of both partners and links
+- [x] Direct links to persons/families in Gramps Web
+- [x] Multilingual support (DE, EN, FR, IT, BS)
 - [ ] Age group filtering
-- [x] Death anniversaries and memorial dates
-- [x] Wedding anniversaries
-- [x] Notifications for upcoming birthdays
+- [ ] Notifications for upcoming birthdays
 - [ ] Support for multiple Gramps Web instances
 
 ## License

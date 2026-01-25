@@ -1,175 +1,26 @@
-{
+﻿{
   "config": {
     "step": {
       "user": {
-        "title": "Postavi Gramps HA",
-        "description": "Povežite se sa vašom Gramps Web instancom",
+        "title": "Podesi Gramps HA",
+        "description": "Poveži se sa svojom Gramps Web instancom",
         "data": {
           "url": "URL",
           "username": "Korisničko ime (opcionalno)",
           "password": "Lozinka (opcionalno)",
-
           "num_birthdays": "Broj rođendana (opcionalno)",
-          "show_deathdays": "Prikaži datume smrti/spominjanja",
+          "show_deathdays": "Prikaži datume smrti/komemoracije",
           "show_anniversaries": "Prikaži godišnjice braka"
         }
       }
     },
     "error": {
       "cannot_connect": "Povezivanje nije uspjelo",
-      "invalid_url": "Neispravan URL",
+      "invalid_url": "Nevažeći URL",
       "unknown": "Došlo je do nepoznate greške"
     },
     "abort": {
       "already_configured": "Ova Gramps Web instanca je već konfigurirana"
     }
-  },
-  "entity": {
-    "sensor": {
-      "next_birthday_1_name": {
-        "name": "Sljedeći rođendan 1 Ime"
-      },
-      "next_birthday_1_age": {
-        "name": "Sljedeći rođendan 1 Dob"
-      },
-      "next_birthday_1_date": {
-        "name": "Sljedeći rođendan 1 Datum"
-      },
-      "next_birthday_1_days_until": {
-        "name": "Sljedeći rođendan 1 Preostali dani"
-      },
-      "next_birthday_1_image": {
-        "name": "Sljedeći rođendan 1 Slika"
-      },
-      "next_birthday_2_name": {
-        "name": "Sljedeći rođendan 2 Ime"
-      },
-      "next_birthday_2_age": {
-        "name": "Sljedeći rođendan 2 Dob"
-      },
-      "next_birthday_2_date": {
-        "name": "Sljedeći rođendan 2 Datum"
-      },
-      "next_birthday_2_days_until": {
-        "name": "Sljedeći rođendan 2 Preostali dani"
-      },
-      "next_birthday_2_image": {
-        "name": "Sljedeći rođendan 2 Slika"
-      },
-      "next_birthday_3_name": {
-        "name": "Sljedeći rođendan 3 Ime"
-      },
-      "next_birthday_3_age": {
-        "name": "Sljedeći rođendan 3 Dob"
-      },
-      "next_birthday_3_date": {
-        "name": "Sljedeći rođendan 3 Datum"
-      },
-      "next_birthday_3_days_until": {
-        "name": "Sljedeći rođendan 3 Preostali dani"
-      },
-      "next_birthday_3_image": {
-        "name": "Sljedeći rođendan 3 Slika"
-      },
-      "next_birthday_4_name": {
-        "name": "Sljedeći rođendan 4 Ime"
-      },
-      "next_birthday_4_age": {
-        "name": "Sljedeći rođendan 4 Dob"
-      },
-      "next_birthday_4_date": {
-        "name": "Sljedeći rođendan 4 Datum"
-      },
-      "next_birthday_4_days_until": {
-        "name": "Sljedeći rođendan 4 Preostali dani"
-      },
-      "next_birthday_4_image": {
-        "name": "Sljedeći rođendan 4 Slika"
-      },
-      "next_birthday_5_name": {
-        "name": "Sljedeći rođendan 5 Ime"
-      },
-      "next_birthday_5_age": {
-        "name": "Sljedeći rođendan 5 Dob"
-      },
-      "next_birthday_5_date": {
-        "name": "Sljedeći rođendan 5 Datum"
-      },
-      "next_birthday_5_days_until": {
-        "name": "Sljedeći rođendan 5 Preostali dani"
-      },
-      "next_birthday_5_image": {
-        "name": "Sljedeći rođendan 5 Slika"
-      },
-      "next_birthday_6_name": {
-        "name": "Sljedeći rođendan 6 Ime"
-      },
-      "next_birthday_6_age": {
-        "name": "Sljedeći rođendan 6 Dob"
-      },
-      "next_birthday_6_date": {
-        "name": "Sljedeći rođendan 6 Datum"
-      },
-      "next_birthday_6_days_until": {
-        "name": "Sljedeći rođendan 6 Preostali dani"
-      },
-      "next_birthday_6_image": {
-        "name": "Sljedeći rođendan 6 Slika"
-      },
-      "all_upcoming_birthdays": {
-        "name": "Svi nadolazeći rođendani"
-      },
-      "next_deathday_1_name": {"name": "Sljedeća uspomena 1 Ime"},
-      "next_deathday_1_date": {"name": "Sljedeća uspomena 1 Datum"},
-      "next_deathday_1_years_ago": {"name": "Sljedeća uspomena 1 Godina prije"},
-      "next_deathday_1_days_until": {"name": "Sljedeća uspomena 1 Preostali dani"},
-      "next_deathday_2_name": {"name": "Sljedeća uspomena 2 Ime"},
-      "next_deathday_2_date": {"name": "Sljedeća uspomena 2 Datum"},
-      "next_deathday_2_years_ago": {"name": "Sljedeća uspomena 2 Godina prije"},
-      "next_deathday_2_days_until": {"name": "Sljedeća uspomena 2 Preostali dani"},
-      "next_deathday_3_name": {"name": "Sljedeća uspomena 3 Ime"},
-      "next_deathday_3_date": {"name": "Sljedeća uspomena 3 Datum"},
-      "next_deathday_3_years_ago": {"name": "Sljedeća uspomena 3 Godina prije"},
-      "next_deathday_3_days_until": {"name": "Sljedeća uspomena 3 Preostali dani"},
-      "next_deathday_4_name": {"name": "Sljedeća uspomena 4 Ime"},
-      "next_deathday_4_date": {"name": "Sljedeća uspomena 4 Datum"},
-      "next_deathday_4_years_ago": {"name": "Sljedeća uspomena 4 Godina prije"},
-      "next_deathday_4_days_until": {"name": "Sljedeća uspomena 4 Preostali dani"},
-      "next_deathday_5_name": {"name": "Sljedeća uspomena 5 Ime"},
-      "next_deathday_5_date": {"name": "Sljedeća uspomena 5 Datum"},
-      "next_deathday_5_years_ago": {"name": "Sljedeća uspomena 5 Godina prije"},
-      "next_deathday_5_days_until": {"name": "Sljedeća uspomena 5 Preostali dani"},
-      "next_deathday_6_name": {"name": "Sljedeća uspomena 6 Ime"},
-      "next_deathday_6_date": {"name": "Sljedeća uspomena 6 Datum"},
-      "next_deathday_6_years_ago": {"name": "Sljedeća uspomena 6 Godina prije"},
-      "next_deathday_6_days_until": {"name": "Sljedeća uspomena 6 Preostali dani"},
-      "next_anniversary_1_name": {"name": "Sljedeća godišnjica 1 Imena"},
-      "next_anniversary_1_years_together": {"name": "Sljedeća godišnjica 1 Godina zajedno"},
-      "next_anniversary_1_date": {"name": "Sljedeća godišnjica 1 Datum"},
-      "next_anniversary_1_days_until": {"name": "Sljedeća godišnjica 1 Preostali dani"},
-      "next_anniversary_2_name": {"name": "Sljedeća godišnjica 2 Imena"},
-      "next_anniversary_2_years_together": {"name": "Sljedeća godišnjica 2 Godina zajedno"},
-      "next_anniversary_2_date": {"name": "Sljedeća godišnjica 2 Datum"},
-      "next_anniversary_2_days_until": {"name": "Sljedeća godišnjica 2 Preostali dani"},
-      "next_anniversary_3_name": {"name": "Sljedeća godišnjica 3 Imena"},
-      "next_anniversary_3_years_together": {"name": "Sljedeća godišnjica 3 Godina zajedno"},
-      "next_anniversary_3_date": {"name": "Sljedeća godišnjica 3 Datum"},
-      "next_anniversary_3_days_until": {"name": "Sljedeća godišnjica 3 Preostali dani"},
-      "next_anniversary_4_name": {"name": "Sljedeća godišnjica 4 Imena"},
-      "next_anniversary_4_years_together": {"name": "Sljedeća godišnjica 4 Godina zajedno"},
-      "next_anniversary_4_date": {"name": "Sljedeća godišnjica 4 Datum"},
-      "next_anniversary_4_days_until": {"name": "Sljedeća godišnjica 4 Preostali dani"},
-      "next_anniversary_5_name": {"name": "Sljedeća godišnjica 5 Imena"},
-      "next_anniversary_5_years_together": {"name": "Sljedeća godišnjica 5 Godina zajedno"},
-      "next_anniversary_5_date": {"name": "Sljedeća godišnjica 5 Datum"},
-      "next_anniversary_5_days_until": {"name": "Sljedeća godišnjica 5 Preostali dani"},
-      "next_anniversary_6_name": {"name": "Sljedeća godišnjica 6 Imena"},
-      "next_anniversary_6_years_together": {"name": "Sljedeća godišnjica 6 Godina zajedno"},
-      "next_anniversary_6_date": {"name": "Sljedeća godišnjica 6 Datum"},
-      "next_anniversary_6_days_until": {"name": "Sljedeća godišnjica 6 Preostali dani"}
-    }
-  },
-  "notifications": {
-    "new_birthday_title": "🎂 Novi rođendan otkrivEn",
-    "birthday_tomorrow_title": "🎉 Rođendan sutra!"  }
+  }
 }

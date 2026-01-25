@@ -9,17 +9,17 @@ und wenn man schon einen Stammbaum hat, kann man auch die Familien Geburtstage a
 
 ## Features
 
-- 🎂 Zeigt die nächsten 6 Geburtstage an
+- 🎂 Zeigt die nächsten 10 Geburtstage an
 - 📅 Berechnet automatisch die Tage bis zum nächsten Geburtstag
 - 🎉 Zeigt das Alter der Person am kommenden Geburtstag
-- 🧩 Pro Geburtstag fünf Sensoren: Name, Alter, Datum, Tage verbleibend, Bild
+- 🧩 Pro Geburtstag 7 Sensoren: Name, Alter, Datum, Nächstes Datum, Tage verbleibend, Bild, Link
 - 🖼️ Lädt Profilbilder aus Gramps Web herunter (falls vorhanden)
+- 🔗 Direkt-Links zu Personen und Familien in Gramps Web
 - 🔄 Automatische Aktualisierung alle 6 Stunden
 - 🔐 Unterstützt authentifizierte und öffentliche Gramps Web Instanzen
-- 🔔 Benachrichtigungen bei neuen Geburtstagen in der Liste
-- 🎺 Benachrichtigungen wenn morgen jemand Geburtstag hat
-- 🪦 **Optional: Zeigt die nächsten Gedenktage/Todestage an** (aktivierbar in der Konfiguration)
-- 💍 **Optional: Zeigt die nächsten Hochzeitstage/Jahrestage an** (aktivierbar in der Konfiguration)
+- 🪦 **Optional: Zeigt die nächsten 10 Gedenktage/Todestage an** (mit Bild und Link)
+- 💍 **Optional: Zeigt die nächsten 10 Hochzeitstage/Jahrestage an** (mit Bildern beider Partner und Link zur Familie)
+- 🌍 Mehrsprachig: Deutsch, Englisch, Französisch, Italienisch, Bosnisch
 
 ## Installation
 
@@ -59,82 +59,58 @@ rm -rf temp
    - **URL**: Die URL Ihrer Gramps Web Instanz (z.B. `https://meine-gramps.example.com`)
    - **Benutzername**: (optional) Ihr Gramps Web Benutzername
    - **Passwort**: (optional) Ihr Gramps Web Passwort
-   - **Anzahl Geburtstage**: (optional, Standard: 6) Wie viele Geburtstage sollen angezeigt werden
+   - **Anzahl Geburtstage**: (optional, Standard: 10) Anzahl der anzuzeigenden Geburtstage/Todestage/Hochzeitstage
    - **Gedenktage anzeigen**: (optional, Standard: Nein) Zeigt die nächsten Todestage/Gedenktage an
    - **Hochzeitstage anzeigen**: (optional, Standard: Nein) Zeigt die nächsten Hochzeitstage/Jahrestage an
 
 ## Sensoren
 
-Die Integration erstellt folgende Sensoren:
+Die Integration erstellt automatisch 10 Sensoren pro Typ (Geburtstage, Gedenktage, Hochzeitstage), auch wenn weniger Daten vorhanden sind. Sensoren ohne Daten zeigen Standardwerte.
 
-### Nächste Geburtstage (jeweils Name/Alter/Datum/Tage/Bild)
+### Nächste Geburtstage
 
-Für die nächsten 6 Geburtstage werden je fünf Sensoren angelegt:
+Für die nächsten 10 Geburtstage werden je 7 Sensoren angelegt:
 
-- `sensor.next_birthday_1_name`, `sensor.next_birthday_1_age`, `sensor.next_birthday_1_date`, `sensor.next_birthday_1_days_until`, `sensor.next_birthday_1_image`
-- `sensor.next_birthday_2_name`, `sensor.next_birthday_2_age`, `sensor.next_birthday_2_date`, `sensor.next_birthday_2_days_until`, `sensor.next_birthday_2_image`
-- `sensor.next_birthday_3_name`, `sensor.next_birthday_3_age`, `sensor.next_birthday_3_date`, `sensor.next_birthday_3_days_until`, `sensor.next_birthday_3_image`
-- `sensor.next_birthday_4_name`, `sensor.next_birthday_4_age`, `sensor.next_birthday_4_date`, `sensor.next_birthday_4_days_until`, `sensor.next_birthday_4_image`
-- `sensor.next_birthday_5_name`, `sensor.next_birthday_5_age`, `sensor.next_birthday_5_date`, `sensor.next_birthday_5_days_until`, `sensor.next_birthday_5_image`
-- `sensor.next_birthday_6_name`, `sensor.next_birthday_6_age`, `sensor.next_birthday_6_date`, `sensor.next_birthday_6_days_until`, `sensor.next_birthday_6_image`
+1. **Name** (`sensor.next_birthday_X_name`) - Name der Person
+2. **Alter** (`sensor.next_birthday_X_age`) - Alter am nächsten Geburtstag  
+3. **Datum** (`sensor.next_birthday_X_date`) - Geburtsdatum (Format: dd.mm.yyyy)
+4. **Nächstes Datum** (`sensor.next_birthday_X_upcoming_date`) - Datum des nächsten Geburtstags (Format: dd.mm.yyyy)
+5. **Tage verbleibend** (`sensor.next_birthday_X_days_until`) - Tage bis zum Geburtstag
+6. **Bild** (`sensor.next_birthday_X_image`) - URL zum Profilbild (wenn vorhanden)
+7. **Link** (`sensor.next_birthday_X_link`) - Link zur Person in Gramps Web
 
-Hinweis: Die Sensor-IDs können je nach System leicht variieren. Prüfen Sie die exakten Entitäten unter Einstellungen → Geräte & Dienste → Entitäten.
-
-Alle diese Sensoren enthalten Attribute mit Zusatzinformationen:
-- `person_name`: Name der Person
-- `birth_date`: Geburtsdatum
-- `age`: Alter am kommenden Geburtstag
-- `days_until`: Tage bis zum Geburtstag
-- `next_birthday`: Datum des nächsten Geburtstags (ISO)
-- `image_url`: URL zum Profilbild (falls vorhanden)
+Alle Sensoren enthalten zusätzliche Attribute mit detaillierten Informationen.
 
 ### Nächste Gedenktage (optional aktivierbar)
 
-Wenn die Option "Gedenktage anzeigen" aktiviert ist, werden für die nächsten 6 Gedenktage/Todestage je vier Sensoren angelegt:
+Wenn die Option "Gedenktage anzeigen" aktiviert ist, werden für die nächsten 10 Gedenktage/Todestage je 7 Sensoren angelegt:
 
-- `sensor.next_deathday_1_name`, `sensor.next_deathday_1_date`, `sensor.next_deathday_1_years_ago`, `sensor.next_deathday_1_days_until`
-- `sensor.next_deathday_2_name`, `sensor.next_deathday_2_date`, `sensor.next_deathday_2_years_ago`, `sensor.next_deathday_2_days_until`
-- ... bis `sensor.next_deathday_6_*`
-
-Diese Sensoren zeigen:
-- **name**: Name der verstorbenen Person
-- **date**: Todesdatum
-- **years_ago**: Wie viele Jahre sind seit dem Tod vergangen
-- **days_until**: Tage bis zur jährlichen Gedenkerinnerung
+1. **Name** (`sensor.next_deathday_X_name`) - Name der verstorbenen Person
+2. **Datum** (`sensor.next_deathday_X_date`) - Todesdatum (Format: dd.mm.yyyy)
+3. **Nächstes Datum** (`sensor.next_deathday_X_upcoming_date`) - Datum des nächsten Gedenktags (Format: dd.mm.yyyy)
+4. **Jahre her** (`sensor.next_deathday_X_years_ago`) - Wie viele Jahre sind seit dem Tod vergangen
+5. **Tage verbleibend** (`sensor.next_deathday_X_days_until`) - Tage bis zur jährlichen Gedenkerinnerung
+6. **Bild** (`sensor.next_deathday_X_image`) - URL zum Profilbild (wenn vorhanden)
+7. **Link** (`sensor.next_deathday_X_link`) - Link zur Person in Gramps Web
 
 ### Nächste Hochzeitstage (optional aktivierbar)
 
-Wenn die Option "Hochzeitstage anzeigen" aktiviert ist, werden für die nächsten 6 Hochzeitstage/Jahrestage je vier Sensoren angelegt:
+Wenn die Option "Hochzeitstage anzeigen" aktiviert ist, werden für die nächsten 10 Hochzeitstage/Jahrestage je 8 Sensoren angelegt:
 
-- `sensor.next_anniversary_1_name`, `sensor.next_anniversary_1_date`, `sensor.next_anniversary_1_years_together`, `sensor.next_anniversary_1_days_until`
-- `sensor.next_anniversary_2_name`, `sensor.next_anniversary_2_date`, `sensor.next_anniversary_2_years_together`, `sensor.next_anniversary_2_days_until`
-- ... bis `sensor.next_anniversary_6_*`
+1. **Name** (`sensor.next_anniversary_X_name`) - Namen der Ehepartner
+2. **Jahre zusammen** (`sensor.next_anniversary_X_years_together`) - Wie lange sind die Personen verheiratet
+3. **Datum** (`sensor.next_anniversary_X_date`) - Hochzeitsdatum (Format: dd.mm.yyyy)
+4. **Nächstes Datum** (`sensor.next_anniversary_X_upcoming_date`) - Datum des nächsten Jahrestags (Format: dd.mm.yyyy)
+5. **Tage verbleibend** (`sensor.next_anniversary_X_days_until`) - Tage bis zum nächsten Jahrestag
+6. **Bild Person 1** (`sensor.next_anniversary_X_image_person1`) - URL zum Profilbild des ersten Partners
+7. **Bild Person 2** (`sensor.next_anniversary_X_image_person2`) - URL zum Profilbild des zweiten Partners
+8. **Link** (`sensor.next_anniversary_X_link`) - Link zur Familie in Gramps Web
 
-Diese Sensoren zeigen:
-- **name**: Namen der Ehepartner
-- **date**: Hochzeitsdatum
-- **years_together**: Wie lange sind die Personen verheiratet
-- **days_until**: Tage bis zum nächsten Jahrestag
-
-Zusätzlich wird ein aggregierter Sensor bereitgestellt:
-
-- `sensor.all_upcoming_birthdays` – Anzahl/Liste aller anstehenden Geburtstage
+**Wichtig:** Bild- und Link-Sensoren sind standardmäßig deaktiviert, um die History-Datenbank nicht zu belasten. Sie können diese bei Bedarf manuell unter "Einstellungen → Geräte & Dienste → Entitäten" aktivieren.
 
 ## Benachrichtigungen
 
-Die Integration sendet automatisch Benachrichtigungen für folgende Ereignisse:
-
-### 🎂 Neue Geburtstage erkannt
-- Wird ausgelöst, wenn eine neue Person zur Geburtstagliste hinzugefügt wird
-- Enthält: Name, Geburtsdatum und Alter am kommenden Geburtstag
-- Erscheint als persistente Benachrichtigung in Home Assistant
-
-### 🎉 Geburtstag morgen
-- Wird ausgelöst, wenn jemand morgen Geburtstag hat
-- Enthält: Name und zukünftiges Alter
-- Wird täglich geprüft und benachrichtigt
-
-Benachrichtigungen können unter **Einstellungen → Benachrichtigungen** verwaltet werden.
+Die Integration kann optional Benachrichtigungen senden (aktuell experimentell).
 
 ## Dashboard Konfiguration
 
@@ -206,10 +182,12 @@ Diese Integration befindet sich in aktiver Entwicklung. Beiträge sind willkomme
 ### Geplante Features
 
 - [x] Konfigurierbare Anzahl von Geburtstagen
+- [x] Todestage und Gedenktage mit Bildern und Links
+- [x] Hochzeitstage mit Bildern beider Partner und Links
+- [x] Direkt-Links zu Personen/Familien in Gramps Web
+- [x] Mehrsprachigkeit (DE, EN, FR, IT, BS)
 - [ ] Filterung nach Altersgruppen
-- [x] Todestage und Gedenktage
-- [x] Hochzeitstage
-- [x] Benachrichtigungen für anstehende Geburtstage
+- [ ] Benachrichtigungen für anstehende Geburtstage
 - [ ] Unterstützung für mehrere Gramps Web Instanzen
 
 ## Lizenz
