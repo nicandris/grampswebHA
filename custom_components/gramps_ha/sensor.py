@@ -242,9 +242,19 @@ class GrampsWebNextBirthdayDaysUntilSensor(GrampsWebNextBirthdayBase):
     @property
     def native_value(self):
         birthday = self._get_birthday()
+        result = None
         if not birthday:
-            return 999
-        return birthday.get("days_until", 999)
+            result = 999
+            _LOGGER.debug(f"Birthday {self._index + 1} Days Until: No birthday data, returning 999")
+        else:
+            result = birthday.get("days_until", 999)
+            _LOGGER.debug(
+                f"Birthday {self._index + 1} Days Until: "
+                f"Name={birthday.get('person_name')}, "
+                f"Days={result}, "
+                f"Type={type(result)}"
+            )
+        return result
 
     @property
     def available(self) -> bool:
