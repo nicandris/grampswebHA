@@ -1,4 +1,7 @@
+
 # HACS Default Repository Einreichung
+
+Aktueller Stand: v2026.01.24
 
 Anleitung zur Einreichung von Gramps HA in die offiziellen HACS-Repositories.
 
@@ -7,10 +10,11 @@ Anleitung zur Einreichung von Gramps HA in die offiziellen HACS-Repositories.
 - ✅ GitHub Repository: https://github.com/EdgarM73/gramps-ha
 - ✅ `hacs.json` vorhanden und korrekt
 - ✅ `manifest.json` mit korrekter Struktur
-- ✅ Release v1.0.0 Tag erstellt
+- ✅ Release v2026.01.24 Tag erstellt
 - ✅ README.md mit Installationsanleitung
 - ✅ Icon/Logo (icon.png)
 - ✅ Übersetzungen in mehreren Sprachen
+
 
 ## Schritt 1: GitHub Release erstellen
 
@@ -19,36 +23,35 @@ Anleitung zur Einreichung von Gramps HA in die offiziellen HACS-Repositories.
 1. Gehe zu: https://github.com/EdgarM73/gramps-ha/releases/new
 
 2. **Einstellungen:**
-   - **Choose a tag:** v1.0.0 (aus Dropdown wählen)
-   - **Release title:** `v1.0.0 - Gramps HA Integration`
-   - **Description:** (siehe unten)
+  - **Choose a tag:** v2026.01.24 (aus Dropdown wählen)
+  - **Release title:** `v2026.01.24 - Gramps HA Integration`
+  - **Description:** (siehe unten)
 
 3. **Release-Beschreibung:**
 
 ```markdown
-# Gramps HA Integration v1.0.0
+# Gramps HA Integration v2026.01.24
 
-Erste offizielle Version der Gramps Web Integration für Home Assistant.
+Aktuelle Version der Gramps Web Integration für Home Assistant.
 
 ## Features
 
-- 🎂 **6 Geburtstags-Sensoren** - Jeweils aufgeteilt in Name, Alter und Datum
-- 📅 **Automatische Berechnung** - Tage bis zum nächsten Geburtstag
-- 🎉 **Altersanzeige** - Zeigt das kommende Alter der Person
-- 🔄 **Auto-Update** - Aktualisierung alle 6 Stunden
-- 🔐 **Authentifizierung** - Unterstützung für geschützte Gramps Web Instanzen
-- 🌍 **5 Sprachen** - Deutsch, Englisch, Französisch, Italienisch, Bosnisch
-- 🧩 **Nachname-Filter** - Gezielte Anzeige nach Familiennamen
-- 👤 **Nur Lebende** - Automatischer Filter für verstorbene Personen
+- 🎂 Zeigt die nächsten 10 Geburtstage an (je 7 Sensoren pro Geburtstag)
+- 🪦 Optional: Zeigt die nächsten 10 Gedenktage/Todestage an (je 7 Sensoren)
+- 💍 Optional: Zeigt die nächsten 10 Hochzeitstage/Jahrestage an (je 8 Sensoren)
+- 📅 Berechnet automatisch die Tage bis zum nächsten Ereignis
+- 🎉 Zeigt das Alter der Person am kommenden Geburtstag
+- 🔄 Automatische Aktualisierung alle 6 Stunden
+- 🔔 Benachrichtigung immer genau 1 Tag vor dem Ereignis (nur einmal)
+- 🖼️ Lädt Profilbilder aus Gramps Web herunter (falls vorhanden)
+- 🔗 Direkt-Links zu Personen und Familien in Gramps Web
+- 🔐 Unterstützt authentifizierte und öffentliche Gramps Web Instanzen
+- 🌍 Mehrsprachig: Deutsch, Englisch, Französisch, Italienisch, Bosnisch
+```
 
 ## Sensoren
 
-Die Integration erstellt für jeden der nächsten 6 Geburtstage drei separate Sensoren:
-- **Name** - Person mit dem nächsten Geburtstag
-- **Alter** - Wie alt die Person wird
-- **Datum** - Wann der Geburtstag stattfindet
-
-Zusätzlich ein Aggregat-Sensor mit allen anstehenden Geburtstagen.
+Die Integration erstellt für die nächsten 10 Geburtstage, Todestage und Hochzeitstage jeweils 7 bzw. 8 Sensoren pro Ereignis (Name, Alter/Jahre, Datum, nächstes Datum, Tage verbleibend, Bild(er), Link). Sensoren ohne Daten zeigen Standardwerte.
 
 ## Installation
 
@@ -78,14 +81,13 @@ Vollständige Lovelace-Beispiele (Grid, Markdown, Entities) in [EXAMPLES.md](htt
 
 ## Changelog
 
-### v1.0.0 (2026-01-22)
-- Initial Release
-- 6 Geburtstags-Sensoren (Name/Alter/Datum)
-- Gramps Web API Integration
-- 5 Sprach-Übersetzungen
-- Nachname-Filter
-- Automatische Aktualisierung
-- HACS-Unterstützung
+
+### v2026.01.24 (2026-01-25)
+- Benachrichtigung nur noch 1x, immer 1 Tag vor dem Ereignis
+- Todestage und Hochzeitstage als eigene Sensorgruppen
+- 10 Geburtstage, Todestage, Hochzeitstage (je 7/8 Sensoren)
+- Mehrsprachigkeit (DE, EN, FR, IT, BS)
+- Verbesserte Dokumentation und README
 ```
 
 4. **Set as the latest release** ✅ (ankreuzen)
@@ -174,20 +176,17 @@ https://github.com/EdgarM73/gramps-ha
 - [x] No breaking changes expected
 ```
 
+
 ## Schritt 5: Nach PR-Einreichung
 
 1. **Warte auf Review** - HACS-Team prüft deinen PR (kann 1-7 Tage dauern)
-
 2. **Automatische Checks** - GitHub Actions prüfen:
-   - JSON-Syntax korrekt
-   - Repository existiert
-   - Release vorhanden
-   - `hacs.json` valide
-
+  - JSON-Syntax korrekt
+  - Repository existiert
+  - Release vorhanden (v2026.01.2)
+  - `hacs.json` valide
 3. **Feedback umsetzen** - Falls Änderungen nötig sind
-
 4. **Merge** - Nach Genehmigung wird dein PR gemerged
-
 5. **Verfügbarkeit** - Innerhalb von 24h in HACS sichtbar
 
 ## Alternative: Vorerst als Custom Repository
