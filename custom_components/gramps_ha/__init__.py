@@ -154,41 +154,20 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
     async def _check_notifications(self, current_birthdays):
-        """Check for new birthdays and birthdays tomorrow."""
+        """Send only one notification: always 1 day before the event."""
         if not current_birthdays:
             return
-        
-        # Check for new people in the list
-        current_names = {b.get("person_name") for b in current_birthdays}
-        last_names = {b.get("person_name") for b in self.last_birthdays}
-        new_people = current_names - last_names
-        
-        if new_people:
-            for person in current_birthdays:
-                if person.get("person_name") in new_people:
-                    age = person.get("age", "?")
-                    next_birthday = person.get("next_birthday", "?")
-                    title = "🎂 Neuer Geburtstag erkannt"
-                    message = f"{person.get('person_name')} hat bald Geburtstag!\n\nDatum: {next_birthday}\nAlter: {age} Jahre"
-                    persistent_notification.create(
-                        self.hass,
-                        message,
-                        title=title,
-                        notification_id=f"gramps_new_{person.get('person_name')}"
-                    )
-                    _LOGGER.info("New birthday notification: %s", person.get("person_name"))
-        
-        # Check for birthdays tomorrow
+
         today = date.today()
         tomorrow = today.replace(day=today.day + 1) if today.day < 28 else date(today.year if today.month < 12 else today.year + 1, today.month if today.month < 12 else 1, 1)
         tomorrow_str = tomorrow.strftime("%Y-%m-%d")
-        
+
         for person in current_birthdays:
             next_bday = person.get("next_birthday", "")
             if next_bday.startswith(tomorrow_str):
                 age = person.get("age", "?")
                 title = "🎉 Geburtstag morgen!"
-                message = f"{person.get('person_name')} hat morgen Geburtstag!\n\nZukunftiges Alter: {age + 1} Jahre"
+                message = f"{person.get('person_name')} hat morgen Geburtstag!\n\nZukünftiges Alter: {age + 1} Jahre"
                 persistent_notification.create(
                     self.hass,
                     message,
