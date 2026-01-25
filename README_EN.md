@@ -74,8 +74,8 @@ For the next 10 birthdays, 7 sensors are created each:
 
 1. **Name** (`sensor.next_birthday_X_name`) - Person's name
 2. **Age** (`sensor.next_birthday_X_age`) - Age on next birthday
-3. **Date** (`sensor.next_birthday_X_date`) - Birth date (format: dd.mm.yyyy)
-4. **Upcoming Date** (`sensor.next_birthday_X_upcoming_date`) - Date of next birthday (format: dd.mm.yyyy)
+3. **Date** (`sensor.next_birthday_X_date`) - Birth date (Date type)
+4. **Upcoming Date** (`sensor.next_birthday_X_upcoming_date`) - Date of next birthday (Date type)
 5. **Days Remaining** (`sensor.next_birthday_X_days_until`) - Days until birthday
 6. **Image** (`sensor.next_birthday_X_image`) - URL to profile picture (if available)
 7. **Link** (`sensor.next_birthday_X_link`) - Link to person in Gramps Web
@@ -103,8 +103,8 @@ These sensors display:
 If the "Show Deathdays" option is enabled, 7 sensors are created for each of the next 10 memorial/death dates:
 
 1. **Name** (`sensor.next_deathday_X_name`) - Name of deceased person
-2. **Date** (`sensor.next_deathday_X_date`) - Death date (format: dd.mm.yyyy)
-3. **Upcoming Date** (`sensor.next_deathday_X_upcoming_date`) - Date of next memorial (format: dd.mm.yyyy)
+2. **Date** (`sensor.next_deathday_X_date`) - Death date (Date type)
+3. **Upcoming Date** (`sensor.next_deathday_X_upcoming_date`) - Date of next memorial (Date type)
 4. **Years Ago** (`sensor.next_deathday_X_years_ago`) - How many years since death
 5. **Days Remaining** (`sensor.next_deathday_X_days_until`) - Days until annual memorial
 6. **Image** (`sensor.next_deathday_X_image`) - URL to profile picture (if available)
@@ -116,8 +116,8 @@ If the "Show Anniversaries" option is enabled, 8 sensors are created for each of
 
 1. **Name** (`sensor.next_anniversary_X_name`) - Names of spouses
 2. **Years Together** (`sensor.next_anniversary_X_years_together`) - How many years married
-3. **Date** (`sensor.next_anniversary_X_date`) - Marriage date (format: dd.mm.yyyy)
-4. **Upcoming Date** (`sensor.next_anniversary_X_upcoming_date`) - Date of next anniversary (format: dd.mm.yyyy)
+3. **Date** (`sensor.next_anniversary_X_date`) - Marriage date (Date type)
+4. **Upcoming Date** (`sensor.next_anniversary_X_upcoming_date`) - Date of next anniversary (Date type)
 5. **Days Remaining** (`sensor.next_anniversary_X_days_until`) - Days until next anniversary
 6. **Image Person 1** (`sensor.next_anniversary_X_image_person1`) - URL to profile picture of first spouse
 7. **Image Person 2** (`sensor.next_anniversary_X_image_person2`) - URL to profile picture of second spouse

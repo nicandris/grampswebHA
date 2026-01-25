@@ -73,8 +73,8 @@ Für die nächsten 10 Geburtstage werden je 7 Sensoren angelegt:
 
 1. **Name** (`sensor.next_birthday_X_name`) - Name der Person
 2. **Alter** (`sensor.next_birthday_X_age`) - Alter am nächsten Geburtstag  
-3. **Datum** (`sensor.next_birthday_X_date`) - Geburtsdatum (Format: dd.mm.yyyy)
-4. **Nächstes Datum** (`sensor.next_birthday_X_upcoming_date`) - Datum des nächsten Geburtstags (Format: dd.mm.yyyy)
+3. **Datum** (`sensor.next_birthday_X_date`) - Geburtsdatum (Datumtyp)
+4. **Nächstes Datum** (`sensor.next_birthday_X_upcoming_date`) - Datum des nächsten Geburtstags (Datumtyp)
 5. **Tage verbleibend** (`sensor.next_birthday_X_days_until`) - Tage bis zum Geburtstag
 6. **Bild** (`sensor.next_birthday_X_image`) - URL zum Profilbild (wenn vorhanden)
 7. **Link** (`sensor.next_birthday_X_link`) - Link zur Person in Gramps Web
@@ -86,8 +86,8 @@ Alle Sensoren enthalten zusätzliche Attribute mit detaillierten Informationen.
 Wenn die Option "Gedenktage anzeigen" aktiviert ist, werden für die nächsten 10 Gedenktage/Todestage je 7 Sensoren angelegt:
 
 1. **Name** (`sensor.next_deathday_X_name`) - Name der verstorbenen Person
-2. **Datum** (`sensor.next_deathday_X_date`) - Todesdatum (Format: dd.mm.yyyy)
-3. **Nächstes Datum** (`sensor.next_deathday_X_upcoming_date`) - Datum des nächsten Gedenktags (Format: dd.mm.yyyy)
+2. **Datum** (`sensor.next_deathday_X_date`) - Todesdatum (Datumtyp)
+3. **Nächstes Datum** (`sensor.next_deathday_X_upcoming_date`) - Datum des nächsten Gedenktags (Datumtyp)
 4. **Jahre her** (`sensor.next_deathday_X_years_ago`) - Wie viele Jahre sind seit dem Tod vergangen
 5. **Tage verbleibend** (`sensor.next_deathday_X_days_until`) - Tage bis zur jährlichen Gedenkerinnerung
 6. **Bild** (`sensor.next_deathday_X_image`) - URL zum Profilbild (wenn vorhanden)
@@ -99,8 +99,8 @@ Wenn die Option "Hochzeitstage anzeigen" aktiviert ist, werden für die nächste
 
 1. **Name** (`sensor.next_anniversary_X_name`) - Namen der Ehepartner
 2. **Jahre zusammen** (`sensor.next_anniversary_X_years_together`) - Wie lange sind die Personen verheiratet
-3. **Datum** (`sensor.next_anniversary_X_date`) - Hochzeitsdatum (Format: dd.mm.yyyy)
-4. **Nächstes Datum** (`sensor.next_anniversary_X_upcoming_date`) - Datum des nächsten Jahrestags (Format: dd.mm.yyyy)
+3. **Datum** (`sensor.next_anniversary_X_date`) - Hochzeitsdatum (Datumtyp)
+4. **Nächstes Datum** (`sensor.next_anniversary_X_upcoming_date`) - Datum des nächsten Jahrestags (Datumtyp)
 5. **Tage verbleibend** (`sensor.next_anniversary_X_days_until`) - Tage bis zum nächsten Jahrestag
 6. **Bild Person 1** (`sensor.next_anniversary_X_image_person1`) - URL zum Profilbild des ersten Partners
 7. **Bild Person 2** (`sensor.next_anniversary_X_image_person2`) - URL zum Profilbild des zweiten Partners
