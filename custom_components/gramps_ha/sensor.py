@@ -45,8 +45,9 @@ async def async_setup_entry(
 
     sensors: list[SensorEntity] = []
     
-    # Birthday sensors
-    for i in range(num_birthdays):
+    # Birthday sensors - always create all configured sensors (10 by default)
+    # even if there aren't enough birthdays. Sensors without data will show default values.
+    for i in range(10):  # Always create 10 sensors to prevent template errors
         sensors.append(GrampsWebNextBirthdayNameSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayAgeSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayDateSensor(coordinator, entry, i))
@@ -55,9 +56,9 @@ async def async_setup_entry(
         sensors.append(GrampsWebNextBirthdayImageSensor(coordinator, entry, i))
         sensors.append(GrampsWebNextBirthdayLinkSensor(coordinator, entry, i))
 
-    # Deathday sensors (if enabled)
+    # Deathday sensors (if enabled) - always create 10
     if show_deathdays:
-        for i in range(num_birthdays):
+        for i in range(10):
             sensors.append(GrampsWebNextDeathdayNameSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextDeathdayDateSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextDeathdayUpcomingDateSensor(coordinator, entry, i))
@@ -66,9 +67,9 @@ async def async_setup_entry(
             sensors.append(GrampsWebNextDeathdayImageSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextDeathdayLinkSensor(coordinator, entry, i))
 
-    # Anniversary sensors (if enabled)
+    # Anniversary sensors (if enabled) - always create 10
     if show_anniversaries:
-        for i in range(num_birthdays):
+        for i in range(10):
             sensors.append(GrampsWebNextAnniversaryNameSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextAnniversaryYearsTogetherSensor(coordinator, entry, i))
             sensors.append(GrampsWebNextAnniversaryDateSensor(coordinator, entry, i))
@@ -138,7 +139,7 @@ class GrampsWebNextBirthdayNameSensor(GrampsWebNextBirthdayBase):
     def native_value(self):
         birthday = self._get_birthday()
         if not birthday:
-            return None
+            return "Keine Daten"
         return birthday.get("person_name")
 
     @property
