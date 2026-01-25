@@ -108,9 +108,10 @@ Wenn die Option "Hochzeitstage anzeigen" aktiviert ist, werden für die nächste
 
 **Wichtig:** Bild- und Link-Sensoren sind standardmäßig deaktiviert, um die History-Datenbank nicht zu belasten. Sie können diese bei Bedarf manuell unter "Einstellungen → Geräte & Dienste → Entitäten" aktivieren.
 
+
 ## Benachrichtigungen
 
-Die Integration kann optional Benachrichtigungen senden (aktuell experimentell).
+Die Integration sendet (wenn aktiviert) nur noch eine Benachrichtigung pro Ereignis, und zwar immer genau 1 Tag vor dem jeweiligen Datum (Geburtstag, Todestag, Hochzeitstag). Wiederholte oder mehrfache Benachrichtigungen entfallen.
 
 ## Dashboard Konfiguration
 
