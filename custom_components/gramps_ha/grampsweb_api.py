@@ -1039,153 +1039,385 @@ class GrampsWebAPI:
             return False
 
     def _get_marriage_dates(self, person: dict) -> list:
-        """Get all marriage dates from person and family events.
-        
-        Returns list of tuples: (spouse_name_or_none, marriage_date, event_handle, family_handle)
-        where event_handle is used to find the partner later.
+        """Get all marriage/engagement dates for a person.
+
+        Returns a list of 4-tuples:
+
+            (spouse_name, marriage_date, event_handle, family_handle)
+
+        where:
+            spouse_name   = name of the spouse, or None if unknown
+            marriage_date = parsed Python date
+            event_handle  = Gramps event handle
+            family_handle = Gramps family handle, or None if unavailable
+
+        The function deliberately guarantees that every returned tuple has
+        exactly four elements. This is important because get_anniversaries()
+        unpacks the result into four variables.
         """
         marriage_dates = []
+
         try:
             person_handle = person.get("handle", "")
-            event_ref_list = person.get("event_ref_list", [])
-            families = person.get("family_list", [])
+            event_ref_list = person.get("event_ref_list", []) or []
+            families = person.get("family_list", []) or []
 
-            # Collect possible spouse handles from families
-            # family_list contains STRINGS (handles), not dictionaries!
-            spouse_handles = set()
-            for family_handle_or_ref in families:
-                # If it's a dict, extract handle; if it's a string, use directly
-                if isinstance(family_handle_or_ref, dict):
-                    family_handle = (
-                        family_handle_or_ref.get("ref")
-                        or family_handle_or_ref.get("handle")
-                        or family_handle_or_ref.get("hlink")
+            # ------------------------------------------------------------------
+            # Helper: extract a handle from the different formats Gramps Web
+            # may return.
+            # ------------------------------------------------------------------
+            def extract_handle(value):
+                if isinstance(value, dict):
+                    value = (
+                        value.get("ref")
+                        or value.get("handle")
+                        or value.get("hlink")
+                    )
+
+                if not value or not isinstance(value, str):
+                    return None
+
+                # Handle values can occasionally be returned as paths/URLs.
+                if "/" in value:
+                    value = value.rstrip("/").split("/")[-1]
+
+                return value
+
+            # ------------------------------------------------------------------
+            # Helper: determine whether an event is a marriage/engagement event.
+            # ------------------------------------------------------------------
+            def is_marriage_event(event):
+                if not isinstance(event, dict):
+                    return False
+
+                event_type = event.get("type", {})
+
+                if isinstance(event_type, dict):
+                    type_string = (
+                        event_type.get("string")
+                        or event_type.get("name")
+                        or event_type.get("value")
+                        or ""
                     )
                 else:
-                    # It's a string (the handle directly)
-                    family_handle = family_handle_or_ref
+                    type_string = str(event_type or "")
 
-                if not family_handle:
+                type_string = type_string.lower()
+
+                return (
+                    "marriage" in type_string
+                    or "engagement" in type_string
+                )
+
+            # ------------------------------------------------------------------
+            # Helper: extract and parse the date from a Gramps event.
+            # ------------------------------------------------------------------
+            def get_event_date(event):
+                if not isinstance(event, dict):
+                    return None
+
+                date_info = event.get("date", {})
+
+                if isinstance(date_info, dict):
+                    raw_dateval = (
+                        date_info.get("dateval")
+                        or date_info.get("val")
+                        or date_info.get("start")
+                    )
+                else:
+                    raw_dateval = date_info
+
+                if not raw_dateval:
+                    return None
+
+                return self._parse_dateval(raw_dateval)
+
+            # ------------------------------------------------------------------
+            # Cache spouse names while processing this person. A person can
+            # occur in more than one family/event.
+            # ------------------------------------------------------------------
+            spouse_name_cache = {}
+
+            def get_person_name_from_handle(handle):
+                handle = extract_handle(handle)
+
+                if not handle:
+                    return None
+
+                if handle in spouse_name_cache:
+                    return spouse_name_cache[handle]
+
+                try:
+                    spouse_person = self._get(f"people/{handle}")
+
+                    if spouse_person:
+                        name = self._get_person_name(spouse_person)
+                    else:
+                        name = None
+
+                except Exception as err:
+                    _LOGGER.debug(
+                        "Could not fetch spouse %s: %s",
+                        handle,
+                        err,
+                    )
+                    name = None
+
+                spouse_name_cache[handle] = name
+                return name
+
+            # ------------------------------------------------------------------
+            # First process the person's family_list.
+            #
+            # In Gramps Web, family_list may contain either:
+            #   * strings containing family handles
+            #   * dictionaries containing ref/handle/hlink
+            #
+            # Each family can provide:
+            #   * parent_rel_list -> the partners
+            #   * event_ref_list  -> marriage/engagement events
+            # ------------------------------------------------------------------
+            family_handles = []
+
+            for family_ref in families:
+                family_handle = extract_handle(family_ref)
+
+                if family_handle and family_handle not in family_handles:
+                    family_handles.append(family_handle)
+
+            # Keep track of spouses discovered through families.
+            spouse_handles = set()
+
+            for family_handle in family_handles:
+                try:
+                    family = self._get_family(family_handle)
+                except Exception as err:
+                    _LOGGER.debug(
+                        "Could not fetch family %s: %s",
+                        family_handle,
+                        err,
+                    )
                     continue
 
-                family = self._get_family(family_handle)
-                if not family:
+                if not isinstance(family, dict):
                     continue
 
-                for parent_rel in family.get("parent_rel_list", []):
-                    spouse_handle = parent_rel.get("ref") or parent_rel.get("handle")
-                    if spouse_handle and spouse_handle != person_handle:
+                # --------------------------------------------------------------
+                # Find the other parent/partner in the family.
+                # --------------------------------------------------------------
+                parent_rel_list = family.get("parent_rel_list", []) or []
+
+                for parent_rel in parent_rel_list:
+                    spouse_handle = extract_handle(parent_rel)
+
+                    if (
+                        spouse_handle
+                        and spouse_handle != person_handle
+                    ):
                         spouse_handles.add(spouse_handle)
 
-                # Process marriage events attached to the family
-                for event_ref in family.get("event_ref_list", []):
-                    ev_handle = (
-                        event_ref.get("ref")
-                        or event_ref.get("handle")
-                        or event_ref.get("hlink")
-                    )
-                    if not ev_handle:
+                # --------------------------------------------------------------
+                # Process events attached to the family.
+                # --------------------------------------------------------------
+                family_event_refs = family.get("event_ref_list", []) or []
+
+                for event_ref in family_event_refs:
+                    event_handle = extract_handle(event_ref)
+
+                    if not event_handle:
                         continue
-                    event = self._get_event(ev_handle)
+
+                    event = self._get_event(event_handle)
+
                     if not event:
                         continue
 
-                    event_type = event.get("type", {})
-                    type_string = (
-                        event_type.get("string", "")
-                        if isinstance(event_type, dict)
-                        else str(event_type)
-                    )
-                    if "marriage" not in type_string.lower() and "engagement" not in type_string.lower():
+                    if not is_marriage_event(event):
                         continue
 
-                    dateval = event.get("date", {})
-                    raw_dateval = None
-                    if isinstance(dateval, dict):
-                        raw_dateval = (
-                            dateval.get("dateval")
-                            or dateval.get("val")
-                            or dateval.get("start")
+                    marriage_date = get_event_date(event)
+
+                    if not marriage_date:
+                        _LOGGER.debug(
+                            "Marriage event %s has no usable date",
+                            event_handle,
                         )
-                    else:
-                        raw_dateval = dateval
-
-                    parsed_dateval = self._parse_dateval(raw_dateval)
-                    if not parsed_dateval:
                         continue
 
-                    for spouse_handle in spouse_handles or [None]:
-                        spouse_name = None
-                        if spouse_handle:
-                            try:
-                                spouse_person = self._get(f"people/{spouse_handle}")
-                                if spouse_person:
-                                    spouse_name = self._get_person_name(spouse_person)
-                            except Exception:
-                                spouse_name = None
-                        marriage_dates.append((spouse_name, parsed_dateval, ev_handle, family_handle))
+                    # Normally there should be one other partner. If there
+                    # are multiple parent relationships, create an entry for
+                    # each one.
+                    if spouse_handles:
+                        for spouse_handle in sorted(spouse_handles):
+                            spouse_name = get_person_name_from_handle(
+                                spouse_handle
+                            )
 
-            # Also process any marriage events directly attached to the person
-            for event_ref in event_ref_list:
-                # event_ref_list should contain dicts with .get() method
-                if not isinstance(event_ref, dict):
+                            # IMPORTANT:
+                            # Always return exactly four values.
+                            marriage_dates.append(
+                                (
+                                    spouse_name,
+                                    marriage_date,
+                                    event_handle,
+                                    family_handle,
+                                )
+                            )
+                    else:
+                        # We know this is a family marriage event but couldn't
+                        # identify the other partner.
+                        marriage_dates.append(
+                            (
+                                None,
+                                marriage_date,
+                                event_handle,
+                                family_handle,
+                            )
+                        )
+
+            # ------------------------------------------------------------------
+            # Now process marriage/engagement events directly attached to the
+            # person.
+            #
+            # These events don't necessarily have an obvious family handle.
+            # If the person has family records, try to associate the event with
+            # the appropriate family by matching its event handle.
+            # ------------------------------------------------------------------
+
+            family_event_to_handle = {}
+
+            for family_handle in family_handles:
+                try:
+                    family = self._get_family(family_handle)
+                except Exception:
                     continue
 
-                event_handle = (
-                    event_ref.get("ref")
-                    or event_ref.get("handle")
-                    or event_ref.get("hlink")
-                )
+                if not isinstance(family, dict):
+                    continue
+
+                for event_ref in family.get("event_ref_list", []) or []:
+                    event_handle = extract_handle(event_ref)
+
+                    if event_handle:
+                        family_event_to_handle[event_handle] = family_handle
+
+            for event_ref in event_ref_list:
+                event_handle = extract_handle(event_ref)
+
                 if not event_handle:
                     continue
 
                 event = self._get_event(event_handle)
+
                 if not event:
                     continue
 
-                event_type = event.get("type", {})
-                type_string = (
-                    event_type.get("string", "")
-                    if isinstance(event_type, dict)
-                    else str(event_type)
-                )
-                if "marriage" not in type_string.lower() and "engagement" not in type_string.lower():
+                if not is_marriage_event(event):
                     continue
 
-                dateval = event.get("date", {})
-                raw_dateval = None
-                if isinstance(dateval, dict):
-                    raw_dateval = (
-                        dateval.get("dateval")
-                        or dateval.get("val")
-                        or dateval.get("start")
+                marriage_date = get_event_date(event)
+
+                if not marriage_date:
+                    _LOGGER.debug(
+                        "Marriage event %s has no usable date",
+                        event_handle,
                     )
-                else:
-                    raw_dateval = dateval
-
-                parsed_dateval = self._parse_dateval(raw_dateval)
-                if not parsed_dateval:
                     continue
 
-                # If we know spouses, emit one entry per spouse; otherwise None
-                if spouse_handles:
-                    for spouse_handle in spouse_handles:
-                        spouse_name = None
-                        try:
-                            spouse_person = self._get(f"people/{spouse_handle}")
-                            if spouse_person:
-                                spouse_name = self._get_person_name(spouse_person)
-                        except Exception:
-                            spouse_name = None
-                        marriage_dates.append((spouse_name, parsed_dateval, event_handle))
-                else:
-                    # Return None for spouse_name to signal we need to find the partner
-                    marriage_dates.append((None, parsed_dateval, event_handle))
+                # If this event is already represented by a family event above,
+                # don't add it again here.
+                family_handle = family_event_to_handle.get(event_handle)
 
-            return marriage_dates
+                if family_handle:
+                    continue
+
+                # If we know spouses from the person's family relationships,
+                # use them. Otherwise return one entry with spouse_name=None.
+                if spouse_handles:
+                    for spouse_handle in sorted(spouse_handles):
+                        spouse_name = get_person_name_from_handle(
+                            spouse_handle
+                        )
+
+                        # IMPORTANT:
+                        # Always return exactly four values.
+                        marriage_dates.append(
+                            (
+                                spouse_name,
+                                marriage_date,
+                                event_handle,
+                                None,
+                            )
+                        )
+                else:
+                    # IMPORTANT:
+                    # Always return exactly four values.
+                    marriage_dates.append(
+                        (
+                            None,
+                            marriage_date,
+                            event_handle,
+                            None,
+                        )
+                    )
+
+            # ------------------------------------------------------------------
+            # Remove exact duplicate entries.
+            #
+            # The same marriage event can sometimes be visible through both
+            # family_list and event_ref_list.
+            # ------------------------------------------------------------------
+            unique_dates = []
+            seen = set()
+
+            for entry in marriage_dates:
+                # Defensive check: make absolutely sure that malformed data
+                # can never reach the caller.
+                if not isinstance(entry, (tuple, list)) or len(entry) != 4:
+                    _LOGGER.warning(
+                        "Ignoring malformed marriage entry for %s: %r",
+                        person_handle,
+                        entry,
+                    )
+                    continue
+
+                spouse_name, marriage_date, event_handle, family_handle = entry
+
+                key = (
+                    spouse_name,
+                    marriage_date,
+                    event_handle,
+                    family_handle,
+                )
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                unique_dates.append(
+                    (
+                        spouse_name,
+                        marriage_date,
+                        event_handle,
+                        family_handle,
+                    )
+                )
+
+            _LOGGER.debug(
+                "Found %s marriage/engagement dates for %s",
+                len(unique_dates),
+                self._get_person_name(person),
+            )
+
+            return unique_dates
 
         except Exception as err:
-            _LOGGER.debug("Error getting marriage dates: %s", err)
+            _LOGGER.debug(
+                "Error getting marriage dates for %s: %s",
+                person.get("handle", "unknown"),
+                err,
+                exc_info=True,
+            )
             return []
 
     def _get_event(self, handle: str):
