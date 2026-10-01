@@ -51,6 +51,11 @@ class GrampsWebAPI:
             return True
 
         try:
+            _LOGGER.debug("Authenticating with Gramps Web at %s", self.url)
+
+            # Remove any expired/stale bearer token before authenticating.
+            self._session.headers.pop("Authorization", None)
+
             response = self._session.post(
                 f"{self.url}/api/token/",
                 json={
@@ -60,23 +65,52 @@ class GrampsWebAPI:
                 timeout=10,
             )
             response.raise_for_status()
-            data = response.json()
-            self.token = data.get("access_token")
 
-            if self.token:
-                self._session.headers.update({"Authorization": f"Bearer {self.token}"})
+            data = response.json()
+            token = data.get("access_token")
+
+            if not token:
+                self.token = None
+                _LOGGER.error(
+                    "Gramps Web authentication succeeded but no access_token "
+                    "was returned"
+                )
+                return False
+
+            self.token = token
+            self._session.headers.update(
+                {"Authorization": f"Bearer {self.token}"}
+            )
+
+            _LOGGER.debug("Successfully authenticated with Gramps Web")
             return True
+
         except Exception as err:
-            _LOGGER.warning("Failed to authenticate with Gramps Web: %s", err)
+            self.token = None
+            self._session.headers.pop("Authorization", None)
+            _LOGGER.warning(
+                "Failed to authenticate with Gramps Web: %s",
+                err,
+            )
             return False
 
+    def _invalidate_token(self):
+        """Clear the current authentication token."""
+        self.token = None
+        self._session.headers.pop("Authorization", None)
+
     def _get(self, endpoint: str, params: dict = None):
-        """Make a GET request to the API."""
-        if not self.token and self.username:
-            self._authenticate()
+        """Make a GET request to the API.
+
+        If the cached JWT has expired, Gramps Web returns HTTP 401.
+        In that case, authenticate once and retry the request exactly once.
+        """
+        if self.username and not self.token:
+            if not self._authenticate():
+                raise RuntimeError("Failed to authenticate with Gramps Web")
 
         try:
-            url = f"{self.url}/api/{endpoint}"
+            url = f"{self.url}/api/{endpoint.lstrip('/')}"
             _LOGGER.debug("GET request to: %s", url)
 
             response = self._session.get(
@@ -84,12 +118,39 @@ class GrampsWebAPI:
                 params=params,
                 timeout=30,
             )
+
+            # A token can expire even though self.token still contains it.
+            # Refresh it and retry the failed request once.
+            if response.status_code == 401 and self.username:
+                _LOGGER.info(
+                    "Gramps Web returned 401 for %s; "
+                    "refreshing authentication token and retrying",
+                    endpoint,
+                )
+
+                self._invalidate_token()
+
+                if not self._authenticate():
+                    response.raise_for_status()
+
+                response = self._session.get(
+                    url,
+                    params=params,
+                    timeout=30,
+                )
+
             response.raise_for_status()
 
             _LOGGER.debug("Response status: %s", response.status_code)
             return response.json()
+
         except Exception as err:
-            _LOGGER.error("API request to %s failed: %s", endpoint, err, exc_info=True)
+            _LOGGER.error(
+                "API request to %s failed: %s",
+                endpoint,
+                err,
+                exc_info=True,
+            )
             raise
 
     def _resolve_event_handle(self, event_ref: dict) -> str | None:
@@ -660,6 +721,22 @@ class GrampsWebAPI:
             # Download image
             _LOGGER.debug("Downloading image from: %s", image_url)
             response = self._session.get(image_url, timeout=10)
+
+            # Image endpoints are authenticated too. If the JWT expired,
+            # refresh it and retry the image request once.
+            if response.status_code == 401 and self.username:
+                _LOGGER.info(
+                    "Gramps Web returned 401 while downloading image; "
+                    "refreshing authentication token"
+                )
+
+                self._invalidate_token()
+
+                if not self._authenticate():
+                    response.raise_for_status()
+
+                response = self._session.get(image_url, timeout=10)
+
             response.raise_for_status()
 
             # Save to file
