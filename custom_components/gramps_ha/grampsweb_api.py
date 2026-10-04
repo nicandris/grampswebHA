@@ -38,6 +38,8 @@ class GrampsWebAPI:
             "people_timestamp": None,
             "birthdays": None,
             "birthdays_timestamp": None,
+            "deceased_birthdays": None,
+            "deceased_birthdays_timestamp": None,
             "deathdays": None,
             "deathdays_timestamp": None,
             "anniversaries": None,
@@ -795,6 +797,46 @@ class GrampsWebAPI:
         except Exception as err:
             _LOGGER.debug("Could not calculate birthday for %s: %s", name, err)
             return None
+
+    def get_deceased_birthdays(self, limit: int = 50):
+        """Get upcoming birthdays for people who have passed away."""
+        if self._is_cache_valid("deceased_birthdays"):
+            _LOGGER.debug("Returning cached deceased birthdays data")
+            return self._cache["deceased_birthdays"]
+
+        try:
+            _LOGGER.info("Fetching birthdays of deceased people from Gramps Web API")
+            all_people = self.get_people()
+            if not isinstance(all_people, list):
+                _LOGGER.warning("Unexpected people response while fetching deceased birthdays")
+                return []
+
+            deceased_birthdays = []
+            for person in all_people:
+                person = self._ensure_person_events(person)
+                if self._is_person_alive(person):
+                    continue
+
+                birth_date = self._extract_birth_date(person)
+                if not birth_date:
+                    continue
+
+                name = self._get_person_name(person)
+                birthday = self._calculate_next_birthday(birth_date, name, person)
+                if birthday:
+                    deceased_birthdays.append(birthday)
+
+            deceased_birthdays.sort(key=lambda x: x["days_until"])
+            result = deceased_birthdays[:limit]
+
+            self._cache["deceased_birthdays"] = result
+            self._cache["deceased_birthdays_timestamp"] = datetime.now()
+            _LOGGER.info("Found %s birthdays for deceased people", len(result))
+            return result
+
+        except Exception as err:
+            _LOGGER.error("Failed to fetch deceased birthdays: %s", err, exc_info=True)
+            return []
 
     def get_deathdays(self, limit: int = 50):
         """Get upcoming deathdays/memorial dates from Gramps Web with caching."""

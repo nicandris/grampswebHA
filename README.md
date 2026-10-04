@@ -20,6 +20,7 @@ und wenn man schon einen Stammbaum hat, kann man auch die Familien Geburtstage a
 - 🔄 Automatische Aktualisierung alle 6 Stunden
 - 🔐 Unterstützt authentifizierte und öffentliche Gramps Web Instanzen
 - 🪦 **Optional: Zeigt die nächsten 6 Gedenktage/Todestage an** (mit Bild und Link)
+- 🕯️ Zeigt die nächsten Geburtstage von bereits verstorbenen Personen separat an
 - 💍 **Optional: Zeigt die nächsten 6 Hochzeitstage/Jahrestage an** (mit Bildern beider Partner und Link zur Familie)
 - 🌍 Mehrsprachig: Deutsch, Englisch, Französisch, Italienisch, Bosnisch
 
@@ -84,6 +85,12 @@ Für die nächsten 10 Geburtstage werden je 7 Sensoren angelegt:
 7. **Link** (`sensor.next_birthday_X_link`) - Link zur Person in Gramps Web
 
 Alle Sensoren enthalten zusätzliche Attribute mit detaillierten Informationen.
+
+### Geburtstage Verstorbener
+
+Zusätzlich zu den normalen Geburtstagen gibt es dieselben Geburtstagssensoren separat für Personen, die in Gramps als verstorben erfasst sind. Dabei wird das Geburtsdatum verwendet; das Alter entspricht dem Alter, das die Person am nächsten Geburtstag erreicht hätte.
+
+Die Sensoren verwenden das Präfix `sensor.next_deceased_birthday_X_` und umfassen Name, Alter, Geburtsdatum, nächstes Datum, verbleibende Tage, Bild und Link.
 
 ### Nächste Gedenktage (optional aktivierbar)
 

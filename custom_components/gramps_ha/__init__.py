@@ -126,6 +126,19 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             
             # Check for notifications
             await self._check_notifications(data)
+
+            # Fetch birthdays for people who have passed away.
+            deceased_birthdays = await self.hass.async_add_executor_job(
+                self.api.get_deceased_birthdays
+            )
+            self.hass.data.setdefault(f"{DOMAIN}_deceased_birthdays", {})[
+                self.entry.entry_id
+            ] = deceased_birthdays or []
+            _LOGGER.debug(
+                "Deceased birthdays fetched: %s entries%s",
+                len(deceased_birthdays) if deceased_birthdays else 0,
+                f" | first: {deceased_birthdays[0]}" if deceased_birthdays else "",
+            )
             
             # Fetch deathdays if enabled
             if self.entry.data.get("show_deathdays", False):
