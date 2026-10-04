@@ -6,11 +6,21 @@
         "description": "Verbinden Sie sich mit Ihrer Gramps Web Instanz",
         "data": {
           "url": "URL",
-          "username": "Benutzername (optional)",
-          "password": "Passwort (optional)",
+          "username": "Benutzername",
+          "password": "Passwort",
           "num_birthdays": "Anzahl Geburtstage (optional)",
           "show_deathdays": "Todestage/Gedenktage anzeigen",
-          "show_anniversaries": "Hochzeitstage anzeigen"
+          "show_anniversaries": "Hochzeitstage anzeigen",
+          "scan_interval": "Aktualisierungsintervall (Stunden)"
+        },
+        "data_description": {
+          "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. https://gramps.example.com",
+          "username": "Ein Gramps Web Benutzer. Ein Konto mit der Rolle Mitglied (nur lesen) genügt.",
+          "password": "Passwort dieses Gramps Web Benutzers.",
+          "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
+          "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
+          "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
+          "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche)."
         }
       }
     },
