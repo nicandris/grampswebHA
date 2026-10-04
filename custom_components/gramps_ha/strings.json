@@ -2,22 +2,35 @@
   "config": {
     "step": {
       "user": {
-        "title": "Gramps HA einrichten",
-        "description": "Verbinden Sie sich mit Ihrer Gramps Web Instanz",
+        "title": "Set up Gramps HA",
+        "description": "Connect to your Gramps Web instance",
         "data": {
           "url": "URL",
-          "username": "Benutzername (optional)",
-          "password": "Passwort (optional)"
+          "username": "Username",
+          "password": "Password",
+          "num_birthdays": "Number of Birthdays (optional)",
+          "show_deathdays": "Show Deathdays/Memorial Dates",
+          "show_anniversaries": "Show Anniversaries",
+          "scan_interval": "Update interval (hours)"
+        },
+        "data_description": {
+          "url": "Base URL of your Gramps Web instance, e.g. https://gramps.example.com",
+          "username": "A Gramps Web user. A read-only account with the Member role is enough.",
+          "password": "Password of that Gramps Web user.",
+          "num_birthdays": "How many upcoming birthdays get their own set of sensors.",
+          "show_deathdays": "Also create sensors for upcoming death anniversaries.",
+          "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
+          "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week)."
         }
       }
     },
     "error": {
-      "cannot_connect": "Verbindung fehlgeschlagen",
-      "invalid_url": "Ungültige URL",
-      "unknown": "Ein unbekannter Fehler ist aufgetreten"
+      "cannot_connect": "Connection failed",
+      "invalid_url": "Invalid URL",
+      "unknown": "An unknown error occurred"
     },
     "abort": {
-      "already_configured": "Diese Gramps Web Instanz ist bereits konfiguriert"
+      "already_configured": "This Gramps Web instance is already configured"
     }
   }
 }
