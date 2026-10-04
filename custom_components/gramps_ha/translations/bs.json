@@ -1,4 +1,4 @@
-{
+﻿{
   "config": {
     "step": {
       "user": {
@@ -6,12 +6,11 @@
         "description": "Poveži se sa svojom Gramps Web instancom",
         "data": {
           "url": "URL",
-          "username": "Korisničko ime",
-          "password": "Lozinka",
+          "username": "Korisničko ime (opcionalno)",
+          "password": "Lozinka (opcionalno)",
           "num_birthdays": "Broj rođendana (opcionalno)",
           "show_deathdays": "Prikaži datume smrti/komemoracije",
-          "show_anniversaries": "Prikaži godišnjice braka",
-          "scan_interval": "Interval ažuriranja (sati)"
+          "show_anniversaries": "Prikaži godišnjice braka"
         }
       }
     },

@@ -1,4 +1,4 @@
-{
+﻿{
   "config": {
     "step": {
       "user": {
@@ -6,12 +6,11 @@
         "description": "Connectez-vous à votre instance Gramps Web",
         "data": {
           "url": "URL",
-          "username": "Nom d'utilisateur",
-          "password": "Mot de passe",
+          "username": "Nom d'utilisateur (optionnel)",
+          "password": "Mot de passe (optionnel)",
           "num_birthdays": "Nombre d'anniversaires (optionnel)",
           "show_deathdays": "Afficher les dates de décès/commémorations",
-          "show_anniversaries": "Afficher les anniversaires de mariage",
-          "scan_interval": "Intervalle de mise à jour (heures)"
+          "show_anniversaries": "Afficher les anniversaires de mariage"
         }
       }
     },
