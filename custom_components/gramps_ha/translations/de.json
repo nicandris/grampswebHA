@@ -12,7 +12,9 @@
           "show_deathdays": "Todestage/Gedenktage anzeigen",
           "show_anniversaries": "Hochzeitstage anzeigen",
           "scan_interval": "Aktualisierungsintervall (Stunden)",
-          "entity_language": "Entitätsnamen"
+          "entity_language": "Entitätsnamen",
+          "notify_events": "Benachrichtigung am Vortag",
+          "notify_mode": "Dauer der Benachrichtigung"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
@@ -22,7 +24,9 @@
           "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
           "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
           "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
-          "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich."
+          "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich.",
+          "notify_events": "Für welche Ereignisse am Vortag benachrichtigt wird. Leer lassen, um Benachrichtigungen auszuschalten.",
+          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen."
         }
       },
       "reconfigure": {
@@ -36,7 +40,9 @@
           "show_deathdays": "Todestage/Gedenktage anzeigen",
           "show_anniversaries": "Hochzeitstage anzeigen",
           "scan_interval": "Aktualisierungsintervall (Stunden)",
-          "entity_language": "Entitätsnamen"
+          "entity_language": "Entitätsnamen",
+          "notify_events": "Benachrichtigung am Vortag",
+          "notify_mode": "Dauer der Benachrichtigung"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
@@ -46,7 +52,9 @@
           "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
           "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
           "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
-          "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich."
+          "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich.",
+          "notify_events": "Für welche Ereignisse am Vortag benachrichtigt wird. Leer lassen, um Benachrichtigungen auszuschalten.",
+          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen."
         }
       }
     },
@@ -61,11 +69,29 @@
     }
   },
   "exceptions": {
-    "birthday_tomorrow_title": {
+    "birthdays_title": {
       "message": "🎉 Geburtstag morgen!"
     },
-    "birthday_tomorrow_message": {
-      "message": "{name} hat morgen Geburtstag!\n\nZukünftiges Alter: {age} Jahre"
+    "birthdays_message": {
+      "message": "{name} hat morgen Geburtstag!\n\nZukünftiges Alter: {years} Jahre"
+    },
+    "deceased_birthdays_title": {
+      "message": "🕯️ Geburtstag morgen"
+    },
+    "deceased_birthdays_message": {
+      "message": "{name} wäre morgen {years} Jahre alt geworden."
+    },
+    "deathdays_title": {
+      "message": "🕯️ Gedenktag morgen"
+    },
+    "deathdays_message": {
+      "message": "Morgen ist es {years} Jahre her, dass {name} gestorben ist."
+    },
+    "anniversaries_title": {
+      "message": "💍 Hochzeitstag morgen!"
+    },
+    "anniversaries_message": {
+      "message": "{name} feiern morgen {years} Jahre Ehe!"
     }
   },
   "selector": {
@@ -73,6 +99,20 @@
       "options": {
         "en": "Englisch",
         "ha": "Home-Assistant-Sprache"
+      }
+    },
+    "notify_events": {
+      "options": {
+        "birthdays": "Geburtstage",
+        "deceased_birthdays": "Geburtstage Verstorbener",
+        "deathdays": "Gedenktage",
+        "anniversaries": "Hochzeitstage"
+      }
+    },
+    "notify_mode": {
+      "options": {
+        "until_dismissed": "Bis geschlossen",
+        "until_over": "Bis der Tag vorbei ist"
       }
     }
   },
