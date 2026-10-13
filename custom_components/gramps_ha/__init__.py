@@ -188,11 +188,10 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         for person in current_birthdays:
             next_bday = person.get("next_birthday", "")
             if next_bday.startswith(tomorrow_str):
-                age = person.get("age")
                 title = strings[f"{prefix}.birthday_tomorrow_title.message"]
+                # age is already the age reached on next_birthday
                 message = strings[f"{prefix}.birthday_tomorrow_message.message"].format(
-                    name=person.get("person_name"),
-                    age=age + 1 if isinstance(age, int) else "?",
+                    name=person.get("person_name"), age=person.get("age")
                 )
                 persistent_notification.create(
                     self.hass,
