@@ -65,6 +65,9 @@ rm -rf temp
    - **Number of Birthdays**: (optional, default: 10) Number of birthdays/deathdays/anniversaries to display
    - **Show Deathdays**: (optional, default: No) Show upcoming memorial/death dates
    - **Show Anniversaries**: (optional, default: No) Show upcoming wedding anniversaries
+   - **Entity names**: (default: English) English, or the language Home Assistant is set to. Changing it renames sensors and devices; entity IDs stay the same.
+
+To change these settings later, open the integration and choose **Reconfigure** from its ⋮ menu.
 
 ## Sensors
 
