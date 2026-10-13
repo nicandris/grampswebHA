@@ -127,7 +127,12 @@ Wenn die Option "Hochzeitstage anzeigen" aktiviert ist, werden für die nächste
 
 ## Benachrichtigungen
 
-Die Integration sendet (wenn aktiviert) nur noch eine Benachrichtigung pro Ereignis, und zwar immer genau 1 Tag vor dem jeweiligen Datum (Geburtstag, Todestag, Hochzeitstag). Wiederholte oder mehrfache Benachrichtigungen entfallen.
+Am Vortag eines Ereignisses zeigt die Integration eine Home-Assistant-Benachrichtigung (in der Sprache von Home Assistant). Zwei Einstellungen, später auch über **Neu konfigurieren** änderbar:
+
+- **Benachrichtigung am Vortag**: Geburtstage, Geburtstage Verstorbener, Gedenktage und/oder Hochzeitstage. Standard: Geburtstage. Leer lassen, um Benachrichtigungen auszuschalten.
+- **Dauer der Benachrichtigung**: *Bis geschlossen* (Standard) oder *Bis der Tag vorbei ist*; dann wird sie nach dem Ereignistag automatisch entfernt.
+
+Die Prüfung läuft täglich kurz nach Mitternacht, unabhängig vom Aktualisierungsintervall. Ereignisse am selben Tag teilen sich eine Benachrichtigung.
 
 ## Dashboard Konfiguration
 

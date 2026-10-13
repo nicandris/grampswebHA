@@ -18,7 +18,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS, CONF_SHOW_DEATHDAYS, CONF_SHOW_ANNIVERSARIES, DEFAULT_SHOW_DEATHDAYS, DEFAULT_SHOW_ANNIVERSARIES, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE, ENTITY_LANGUAGE_EN, ENTITY_LANGUAGE_HA
+from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS, CONF_SHOW_DEATHDAYS, CONF_SHOW_ANNIVERSARIES, DEFAULT_SHOW_DEATHDAYS, DEFAULT_SHOW_ANNIVERSARIES, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE, ENTITY_LANGUAGE_EN, ENTITY_LANGUAGE_HA, CONF_NOTIFY_EVENTS, NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, NOTIFY_UNTIL_DISMISSED, NOTIFY_UNTIL_OVER, DEFAULT_NOTIFY_MODE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +43,21 @@ def _schema(values: dict[str, Any]) -> vol.Schema:
                 SelectSelectorConfig(
                     options=[ENTITY_LANGUAGE_EN, ENTITY_LANGUAGE_HA],
                     translation_key=CONF_ENTITY_LANGUAGE,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Optional(CONF_NOTIFY_EVENTS, default=values.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)): SelectSelector(
+                SelectSelectorConfig(
+                    options=NOTIFY_EVENTS,
+                    multiple=True,
+                    translation_key=CONF_NOTIFY_EVENTS,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
+            vol.Optional(CONF_NOTIFY_MODE, default=values.get(CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE)): SelectSelector(
+                SelectSelectorConfig(
+                    options=[NOTIFY_UNTIL_DISMISSED, NOTIFY_UNTIL_OVER],
+                    translation_key=CONF_NOTIFY_MODE,
                     mode=SelectSelectorMode.LIST,
                 )
             ),

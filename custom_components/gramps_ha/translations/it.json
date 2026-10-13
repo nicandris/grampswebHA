@@ -12,10 +12,14 @@
           "show_deathdays": "Mostra date di morte/commemorazioni",
           "show_anniversaries": "Mostra anniversari di matrimonio",
           "scan_interval": "Intervallo di aggiornamento (ore)",
-          "entity_language": "Nomi delle entità"
+          "entity_language": "Nomi delle entità",
+          "notify_events": "Notifica il giorno prima",
+          "notify_mode": "Durata della notifica"
         },
         "data_description": {
-          "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati."
+          "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
+          "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
+          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata."
         }
       },
       "reconfigure": {
@@ -29,10 +33,14 @@
           "show_deathdays": "Mostra date di morte/commemorazioni",
           "show_anniversaries": "Mostra anniversari di matrimonio",
           "scan_interval": "Intervallo di aggiornamento (ore)",
-          "entity_language": "Nomi delle entità"
+          "entity_language": "Nomi delle entità",
+          "notify_events": "Notifica il giorno prima",
+          "notify_mode": "Durata della notifica"
         },
         "data_description": {
-          "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati."
+          "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
+          "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
+          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata."
         }
       }
     },
@@ -47,11 +55,29 @@
     }
   },
   "exceptions": {
-    "birthday_tomorrow_title": {
+    "birthdays_title": {
       "message": "🎉 Compleanno domani!"
     },
-    "birthday_tomorrow_message": {
-      "message": "{name} compie gli anni domani!\n\nCompie {age} anni"
+    "birthdays_message": {
+      "message": "{name} compie gli anni domani!\n\nCompie {years} anni"
+    },
+    "deceased_birthdays_title": {
+      "message": "🕯️ Compleanno domani"
+    },
+    "deceased_birthdays_message": {
+      "message": "Domani {name} avrebbe compiuto {years} anni."
+    },
+    "deathdays_title": {
+      "message": "🕯️ Giorno del ricordo domani"
+    },
+    "deathdays_message": {
+      "message": "Domani saranno {years} anni dalla scomparsa di {name}."
+    },
+    "anniversaries_title": {
+      "message": "💍 Anniversario di matrimonio domani!"
+    },
+    "anniversaries_message": {
+      "message": "{name} festeggiano domani {years} anni di matrimonio!"
     }
   },
   "selector": {
@@ -59,6 +85,20 @@
       "options": {
         "en": "Inglese",
         "ha": "Lingua di Home Assistant"
+      }
+    },
+    "notify_events": {
+      "options": {
+        "birthdays": "Compleanni",
+        "deceased_birthdays": "Compleanni dei defunti",
+        "deathdays": "Anniversari di morte",
+        "anniversaries": "Anniversari di matrimonio"
+      }
+    },
+    "notify_mode": {
+      "options": {
+        "until_dismissed": "Finché non chiusa",
+        "until_over": "Fino a fine giornata"
       }
     }
   },

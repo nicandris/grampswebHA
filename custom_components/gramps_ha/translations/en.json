@@ -12,7 +12,9 @@
           "show_deathdays": "Show Deathdays/Memorial Dates",
           "show_anniversaries": "Show Anniversaries",
           "scan_interval": "Update interval (hours)",
-          "entity_language": "Entity names"
+          "entity_language": "Entity names",
+          "notify_events": "Notify the day before",
+          "notify_mode": "Notification lifetime"
         },
         "data_description": {
           "url": "Base URL of your Gramps Web instance, e.g. {example_url}",
@@ -22,7 +24,9 @@
           "show_deathdays": "Also create sensors for upcoming death anniversaries.",
           "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
           "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week).",
-          "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same."
+          "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same.",
+          "notify_events": "Which events get a notification the day before. Leave empty to turn notifications off.",
+          "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over."
         }
       },
       "reconfigure": {
@@ -36,7 +40,9 @@
           "show_deathdays": "Show Deathdays/Memorial Dates",
           "show_anniversaries": "Show Anniversaries",
           "scan_interval": "Update interval (hours)",
-          "entity_language": "Entity names"
+          "entity_language": "Entity names",
+          "notify_events": "Notify the day before",
+          "notify_mode": "Notification lifetime"
         },
         "data_description": {
           "url": "Base URL of your Gramps Web instance, e.g. {example_url}",
@@ -46,7 +52,9 @@
           "show_deathdays": "Also create sensors for upcoming death anniversaries.",
           "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
           "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week).",
-          "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same."
+          "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same.",
+          "notify_events": "Which events get a notification the day before. Leave empty to turn notifications off.",
+          "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over."
         }
       }
     },
@@ -61,11 +69,29 @@
     }
   },
   "exceptions": {
-    "birthday_tomorrow_title": {
+    "birthdays_title": {
       "message": "🎉 Birthday tomorrow!"
     },
-    "birthday_tomorrow_message": {
-      "message": "{name} has a birthday tomorrow!\n\nTurning {age}"
+    "birthdays_message": {
+      "message": "{name} has a birthday tomorrow!\n\nTurning {years}"
+    },
+    "deceased_birthdays_title": {
+      "message": "🕯️ Birthday tomorrow"
+    },
+    "deceased_birthdays_message": {
+      "message": "{name} would have turned {years} tomorrow."
+    },
+    "deathdays_title": {
+      "message": "🕯️ Day of remembrance tomorrow"
+    },
+    "deathdays_message": {
+      "message": "Tomorrow it is {years} years since {name} died."
+    },
+    "anniversaries_title": {
+      "message": "💍 Anniversary tomorrow!"
+    },
+    "anniversaries_message": {
+      "message": "{name} celebrate {years} years together tomorrow!"
     }
   },
   "selector": {
@@ -73,6 +99,20 @@
       "options": {
         "en": "English",
         "ha": "Home Assistant language"
+      }
+    },
+    "notify_events": {
+      "options": {
+        "birthdays": "Birthdays",
+        "deceased_birthdays": "Birthdays of the deceased",
+        "deathdays": "Deathdays",
+        "anniversaries": "Anniversaries"
+      }
+    },
+    "notify_mode": {
+      "options": {
+        "until_dismissed": "Until dismissed",
+        "until_over": "Until the day is over"
       }
     }
   },

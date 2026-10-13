@@ -7,6 +7,7 @@ from pathlib import Path
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.device_registry import (
     async_get as async_get_device_registry,
     DeviceEntryType,
@@ -17,13 +18,33 @@ from homeassistant.components import persistent_notification
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 SCAN_INTERVAL = timedelta(hours=6)
+
+# Notifiable event lists: kind -> (event date key, original date key) in each entry
+NOTIFY_KEYS = {
+    "birthdays": ("next_birthday", "birth_date"),
+    "deceased_birthdays": ("next_birthday", "birth_date"),
+    "deathdays": ("next_deathday", "death_date"),
+    "anniversaries": ("next_anniversary", "marriage_date"),
+}
+
+
+def _years(event: dict, date_key: str, origin_key: str) -> int | str:
+    """Years reached on the event day, from the dates themselves.
+
+    The lists' own age/years fields are computed on the fetch day, so they
+    are one short when a fetch before New Year serves an event after it.
+    """
+    try:
+        return int(str(event[date_key])[:4]) - int(str(event[origin_key])[:4])
+    except (KeyError, TypeError, ValueError):
+        return "?"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -80,6 +101,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+        # Notifications run daily on the cached lists, not on each (weekly) fetch.
+        await coordinator.async_notify()
+        entry.async_on_unload(
+            async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
+        )
+
         _LOGGER.info("Gramps HA setup completed successfully")
         return True
 
@@ -127,9 +154,6 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             data = await self.hass.async_add_executor_job(self.api.get_birthdays)
             _LOGGER.debug("Fetched %s birthdays", len(data) if data else 0)
             
-            # Check for notifications
-            await self._check_notifications(data)
-
             # Fetch birthdays for people who have passed away.
             deceased_birthdays = await self.hass.async_add_executor_job(
                 self.api.get_deceased_birthdays
@@ -144,7 +168,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             )
             
             # Fetch deathdays if enabled
-            if self.entry.data.get("show_deathdays", False):
+            notify_events = self.entry.data.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)
+            if self.entry.data.get("show_deathdays", False) or "deathdays" in notify_events:
                 deathdays = await self.hass.async_add_executor_job(self.api.get_deathdays)
                 self.hass.data.setdefault(f"{DOMAIN}_deathdays", {})[self.entry.entry_id] = deathdays or []
                 _LOGGER.debug(
@@ -156,7 +181,7 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Deathdays disabled in config; skipping fetch")
             
             # Fetch anniversaries if enabled
-            if self.entry.data.get("show_anniversaries", False):
+            if self.entry.data.get("show_anniversaries", False) or "anniversaries" in notify_events:
                 anniversaries = await self.hass.async_add_executor_job(self.api.get_anniversaries)
                 self.hass.data.setdefault(f"{DOMAIN}_anniversaries", {})[self.entry.entry_id] = anniversaries or []
                 _LOGGER.debug(
@@ -175,29 +200,51 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error fetching data: %s", err, exc_info=True)
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
-    async def _check_notifications(self, current_birthdays):
-        """Send only one notification: always 1 day before the event."""
-        if not current_birthdays:
-            return
+    def _events(self, kind: str) -> list[dict]:
+        if kind == "birthdays":
+            return self.data or []
+        return self.hass.data.get(f"{DOMAIN}_{kind}", {}).get(self.entry.entry_id) or []
 
-        tomorrow_str = (dt_util.now().date() + timedelta(days=1)).isoformat()
+    async def async_notify(self, now=None) -> None:
+        """Notify about tomorrow's events and remove finished notifications.
+
+        Runs at setup and daily just after midnight, on the cached lists:
+        they hold absolute dates, so they stay valid between fetches.
+        One notification per kind and day, so its id is known in advance.
+        """
+        kinds = self.entry.data.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)
+        today = dt_util.now().date()
+        tomorrow = (today + timedelta(days=1)).isoformat()
+
+        def notification_id(kind: str, day: str) -> str:
+            return f"{DOMAIN}_{self.entry.entry_id}_{kind}_{day}"
+
+        if self.entry.data.get(CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE) == NOTIFY_UNTIL_OVER:
+            yesterday = (today - timedelta(days=1)).isoformat()
+            for kind in NOTIFY_KEYS:
+                persistent_notification.async_dismiss(self.hass, notification_id(kind, yesterday))
+
+        if not kinds:
+            return
         strings = await async_get_translations(
             self.hass, self.hass.config.language, "exceptions", {DOMAIN}
         )
         prefix = f"component.{DOMAIN}.exceptions"
 
-        for person in current_birthdays:
-            next_bday = person.get("next_birthday", "")
-            if next_bday.startswith(tomorrow_str):
-                title = strings[f"{prefix}.birthday_tomorrow_title.message"]
-                # age is already the age reached on next_birthday
-                message = strings[f"{prefix}.birthday_tomorrow_message.message"].format(
-                    name=person.get("person_name"), age=person.get("age")
+        for kind in kinds:
+            date_key, origin_key = NOTIFY_KEYS[kind]
+            messages = [
+                strings[f"{prefix}.{kind}_message.message"].format(
+                    name=event.get("person_name"), years=_years(event, date_key, origin_key)
                 )
-                persistent_notification.create(
+                for event in self._events(kind)
+                if str(event.get(date_key, ""))[:10] == tomorrow
+            ]
+            if messages:
+                persistent_notification.async_create(
                     self.hass,
-                    message,
-                    title=title,
-                    notification_id=f"gramps_tomorrow_{person.get('person_name')}"
+                    "\n\n".join(messages),
+                    title=strings[f"{prefix}.{kind}_title.message"],
+                    notification_id=notification_id(kind, tomorrow),
                 )
-                _LOGGER.info("Birthday tomorrow notification: %s", person.get("person_name"))
+                _LOGGER.info("%s tomorrow notification: %s", kind, len(messages))
