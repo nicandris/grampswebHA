@@ -1,4 +1,4 @@
-﻿{
+{
   "config": {
     "step": {
       "user": {
@@ -21,6 +21,14 @@
     },
     "abort": {
       "already_configured": "Questa istanza Gramps Web è già configurata"
+    }
+  },
+  "exceptions": {
+    "birthday_tomorrow_title": {
+      "message": "🎉 Compleanno domani!"
+    },
+    "birthday_tomorrow_message": {
+      "message": "{name} compie gli anni domani!\n\nCompie {age} anni"
     }
   }
 }

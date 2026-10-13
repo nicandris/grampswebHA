@@ -14,6 +14,8 @@ from homeassistant.helpers.device_registry import (
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.components import persistent_notification
+from homeassistant.helpers.translation import async_get_translations
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 
@@ -177,16 +179,21 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         if not current_birthdays:
             return
 
-        today = date.today()
-        tomorrow = today.replace(day=today.day + 1) if today.day < 28 else date(today.year if today.month < 12 else today.year + 1, today.month if today.month < 12 else 1, 1)
-        tomorrow_str = tomorrow.strftime("%Y-%m-%d")
+        tomorrow_str = (dt_util.now().date() + timedelta(days=1)).isoformat()
+        strings = await async_get_translations(
+            self.hass, self.hass.config.language, "exceptions", {DOMAIN}
+        )
+        prefix = f"component.{DOMAIN}.exceptions"
 
         for person in current_birthdays:
             next_bday = person.get("next_birthday", "")
             if next_bday.startswith(tomorrow_str):
-                age = person.get("age", "?")
-                title = "🎉 Geburtstag morgen!"
-                message = f"{person.get('person_name')} hat morgen Geburtstag!\n\nZukünftiges Alter: {age + 1} Jahre"
+                age = person.get("age")
+                title = strings[f"{prefix}.birthday_tomorrow_title.message"]
+                message = strings[f"{prefix}.birthday_tomorrow_message.message"].format(
+                    name=person.get("person_name"),
+                    age=age + 1 if isinstance(age, int) else "?",
+                )
                 persistent_notification.create(
                     self.hass,
                     message,
