@@ -11,7 +11,28 @@
           "num_birthdays": "Nombre d'anniversaires (optionnel)",
           "show_deathdays": "Afficher les dates de décès/commémorations",
           "show_anniversaries": "Afficher les anniversaires de mariage",
-          "scan_interval": "Intervalle de mise à jour (heures)"
+          "scan_interval": "Intervalle de mise à jour (heures)",
+          "entity_language": "Noms des entités"
+        },
+        "data_description": {
+          "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Gramps HA",
+        "description": "Modifier les paramètres de cette connexion Gramps Web",
+        "data": {
+          "url": "URL",
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe",
+          "num_birthdays": "Nombre d'anniversaires (optionnel)",
+          "show_deathdays": "Afficher les dates de décès/commémorations",
+          "show_anniversaries": "Afficher les anniversaires de mariage",
+          "scan_interval": "Intervalle de mise à jour (heures)",
+          "entity_language": "Noms des entités"
+        },
+        "data_description": {
+          "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés."
         }
       }
     },
@@ -21,7 +42,8 @@
       "unknown": "Une erreur inconnue s'est produite"
     },
     "abort": {
-      "already_configured": "Cette instance Gramps Web est déjà configurée"
+      "already_configured": "Cette instance Gramps Web est déjà configurée",
+      "reconfigure_successful": "Reconfiguration réussie"
     }
   },
   "exceptions": {
@@ -30,6 +52,122 @@
     },
     "birthday_tomorrow_message": {
       "message": "{name} fête son anniversaire demain !\n\nÂge à venir : {age} ans"
+    }
+  },
+  "selector": {
+    "entity_language": {
+      "options": {
+        "en": "Anglais",
+        "ha": "Langue de Home Assistant"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "birthday_name": {
+        "name": "Prochain anniversaire {n} Nom"
+      },
+      "birthday_age": {
+        "name": "Prochain anniversaire {n} Âge"
+      },
+      "birthday_date": {
+        "name": "Prochain anniversaire {n} Date"
+      },
+      "birthday_upcoming_date": {
+        "name": "Prochain anniversaire {n} Date à venir"
+      },
+      "birthday_days_until": {
+        "name": "Prochain anniversaire {n} Jours restants"
+      },
+      "birthday_image": {
+        "name": "Prochain anniversaire {n} Image"
+      },
+      "birthday_link": {
+        "name": "Prochain anniversaire {n} Lien"
+      },
+      "deceased_birthday_name": {
+        "name": "Prochain anniversaire défunt {n} Nom"
+      },
+      "deceased_birthday_age": {
+        "name": "Prochain anniversaire défunt {n} Âge"
+      },
+      "deceased_birthday_date": {
+        "name": "Prochain anniversaire défunt {n} Date"
+      },
+      "deceased_birthday_upcoming_date": {
+        "name": "Prochain anniversaire défunt {n} Date à venir"
+      },
+      "deceased_birthday_days_until": {
+        "name": "Prochain anniversaire défunt {n} Jours restants"
+      },
+      "deceased_birthday_image": {
+        "name": "Prochain anniversaire défunt {n} Image"
+      },
+      "deceased_birthday_link": {
+        "name": "Prochain anniversaire défunt {n} Lien"
+      },
+      "deathday_name": {
+        "name": "Prochain jour de décès {n} Nom"
+      },
+      "deathday_date": {
+        "name": "Prochain jour de décès {n} Date"
+      },
+      "deathday_upcoming_date": {
+        "name": "Prochain jour de décès {n} Date à venir"
+      },
+      "deathday_years_ago": {
+        "name": "Prochain jour de décès {n} Années écoulées"
+      },
+      "deathday_days_until": {
+        "name": "Prochain jour de décès {n} Jours restants"
+      },
+      "deathday_image": {
+        "name": "Prochain jour de décès {n} Image"
+      },
+      "deathday_link": {
+        "name": "Prochain jour de décès {n} Lien"
+      },
+      "anniversary_name": {
+        "name": "Prochain anniversaire de mariage {n} Nom"
+      },
+      "anniversary_years_together": {
+        "name": "Prochain anniversaire de mariage {n} Années ensemble"
+      },
+      "anniversary_date": {
+        "name": "Prochain anniversaire de mariage {n} Date"
+      },
+      "anniversary_upcoming_date": {
+        "name": "Prochain anniversaire de mariage {n} Date à venir"
+      },
+      "anniversary_days_until": {
+        "name": "Prochain anniversaire de mariage {n} Jours restants"
+      },
+      "anniversary_image_person_1": {
+        "name": "Prochain anniversaire de mariage {n} Image personne 1"
+      },
+      "anniversary_image_person_2": {
+        "name": "Prochain anniversaire de mariage {n} Image personne 2"
+      },
+      "anniversary_link": {
+        "name": "Prochain anniversaire de mariage {n} Lien"
+      },
+      "all_birthdays": {
+        "name": "Tous les anniversaires à venir"
+      }
+    }
+  },
+  "device": {
+    "birthdays": {
+      "name": "Anniversaires"
+    },
+    "deceased_birthdays": {
+      "name": "Anniversaires des défunts"
+    },
+    "deathdays": {
+      "name": "Jours de décès"
+    },
+    "anniversaries": {
+      "name": "Anniversaires de mariage"
     }
   }
 }

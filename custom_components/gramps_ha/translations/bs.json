@@ -11,7 +11,28 @@
           "num_birthdays": "Broj rođendana (opcionalno)",
           "show_deathdays": "Prikaži datume smrti/komemoracije",
           "show_anniversaries": "Prikaži godišnjice braka",
-          "scan_interval": "Interval ažuriranja (sati)"
+          "scan_interval": "Interval ažuriranja (sati)",
+          "entity_language": "Nazivi entiteta"
+        },
+        "data_description": {
+          "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti."
+        }
+      },
+      "reconfigure": {
+        "title": "Ponovo konfiguriši Gramps HA",
+        "description": "Promijeni postavke ove Gramps Web veze",
+        "data": {
+          "url": "URL",
+          "username": "Korisničko ime",
+          "password": "Lozinka",
+          "num_birthdays": "Broj rođendana (opcionalno)",
+          "show_deathdays": "Prikaži datume smrti/komemoracije",
+          "show_anniversaries": "Prikaži godišnjice braka",
+          "scan_interval": "Interval ažuriranja (sati)",
+          "entity_language": "Nazivi entiteta"
+        },
+        "data_description": {
+          "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti."
         }
       }
     },
@@ -21,7 +42,8 @@
       "unknown": "Došlo je do nepoznate greške"
     },
     "abort": {
-      "already_configured": "Ova Gramps Web instanca je već konfigurirana"
+      "already_configured": "Ova Gramps Web instanca je već konfigurirana",
+      "reconfigure_successful": "Ponovna konfiguracija uspješna"
     }
   },
   "exceptions": {
@@ -30,6 +52,122 @@
     },
     "birthday_tomorrow_message": {
       "message": "{name} sutra slavi rođendan!\n\nNapunit će {age} godina"
+    }
+  },
+  "selector": {
+    "entity_language": {
+      "options": {
+        "en": "Engleski",
+        "ha": "Jezik Home Assistanta"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "birthday_name": {
+        "name": "Sljedeći rođendan {n} Ime"
+      },
+      "birthday_age": {
+        "name": "Sljedeći rođendan {n} Godine"
+      },
+      "birthday_date": {
+        "name": "Sljedeći rođendan {n} Datum"
+      },
+      "birthday_upcoming_date": {
+        "name": "Sljedeći rođendan {n} Nadolazeći datum"
+      },
+      "birthday_days_until": {
+        "name": "Sljedeći rođendan {n} Dana do"
+      },
+      "birthday_image": {
+        "name": "Sljedeći rođendan {n} Slika"
+      },
+      "birthday_link": {
+        "name": "Sljedeći rođendan {n} Link"
+      },
+      "deceased_birthday_name": {
+        "name": "Sljedeći rođendan preminulog {n} Ime"
+      },
+      "deceased_birthday_age": {
+        "name": "Sljedeći rođendan preminulog {n} Godine"
+      },
+      "deceased_birthday_date": {
+        "name": "Sljedeći rođendan preminulog {n} Datum"
+      },
+      "deceased_birthday_upcoming_date": {
+        "name": "Sljedeći rođendan preminulog {n} Nadolazeći datum"
+      },
+      "deceased_birthday_days_until": {
+        "name": "Sljedeći rođendan preminulog {n} Dana do"
+      },
+      "deceased_birthday_image": {
+        "name": "Sljedeći rođendan preminulog {n} Slika"
+      },
+      "deceased_birthday_link": {
+        "name": "Sljedeći rođendan preminulog {n} Link"
+      },
+      "deathday_name": {
+        "name": "Sljedeća godišnjica smrti {n} Ime"
+      },
+      "deathday_date": {
+        "name": "Sljedeća godišnjica smrti {n} Datum"
+      },
+      "deathday_upcoming_date": {
+        "name": "Sljedeća godišnjica smrti {n} Nadolazeći datum"
+      },
+      "deathday_years_ago": {
+        "name": "Sljedeća godišnjica smrti {n} Godina od smrti"
+      },
+      "deathday_days_until": {
+        "name": "Sljedeća godišnjica smrti {n} Dana do"
+      },
+      "deathday_image": {
+        "name": "Sljedeća godišnjica smrti {n} Slika"
+      },
+      "deathday_link": {
+        "name": "Sljedeća godišnjica smrti {n} Link"
+      },
+      "anniversary_name": {
+        "name": "Sljedeća godišnjica braka {n} Ime"
+      },
+      "anniversary_years_together": {
+        "name": "Sljedeća godišnjica braka {n} Godina zajedno"
+      },
+      "anniversary_date": {
+        "name": "Sljedeća godišnjica braka {n} Datum"
+      },
+      "anniversary_upcoming_date": {
+        "name": "Sljedeća godišnjica braka {n} Nadolazeći datum"
+      },
+      "anniversary_days_until": {
+        "name": "Sljedeća godišnjica braka {n} Dana do"
+      },
+      "anniversary_image_person_1": {
+        "name": "Sljedeća godišnjica braka {n} Slika osobe 1"
+      },
+      "anniversary_image_person_2": {
+        "name": "Sljedeća godišnjica braka {n} Slika osobe 2"
+      },
+      "anniversary_link": {
+        "name": "Sljedeća godišnjica braka {n} Link"
+      },
+      "all_birthdays": {
+        "name": "Svi nadolazeći rođendani"
+      }
+    }
+  },
+  "device": {
+    "birthdays": {
+      "name": "Rođendani"
+    },
+    "deceased_birthdays": {
+      "name": "Rođendani preminulih"
+    },
+    "deathdays": {
+      "name": "Godišnjice smrti"
+    },
+    "anniversaries": {
+      "name": "Godišnjice braka"
     }
   }
 }

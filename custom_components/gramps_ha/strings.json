@@ -11,7 +11,8 @@
           "num_birthdays": "Number of Birthdays (optional)",
           "show_deathdays": "Show Deathdays/Memorial Dates",
           "show_anniversaries": "Show Anniversaries",
-          "scan_interval": "Update interval (hours)"
+          "scan_interval": "Update interval (hours)",
+          "entity_language": "Entity names"
         },
         "data_description": {
           "url": "Base URL of your Gramps Web instance, e.g. https://gramps.example.com",
@@ -20,7 +21,32 @@
           "num_birthdays": "How many upcoming birthdays get their own set of sensors.",
           "show_deathdays": "Also create sensors for upcoming death anniversaries.",
           "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
-          "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week)."
+          "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week).",
+          "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Gramps HA",
+        "description": "Change the settings of this Gramps Web connection",
+        "data": {
+          "url": "URL",
+          "username": "Username",
+          "password": "Password",
+          "num_birthdays": "Number of Birthdays (optional)",
+          "show_deathdays": "Show Deathdays/Memorial Dates",
+          "show_anniversaries": "Show Anniversaries",
+          "scan_interval": "Update interval (hours)",
+          "entity_language": "Entity names"
+        },
+        "data_description": {
+          "url": "Base URL of your Gramps Web instance, e.g. https://gramps.example.com",
+          "username": "A Gramps Web user. A read-only account with the Member role is enough.",
+          "password": "Password of that Gramps Web user.",
+          "num_birthdays": "How many upcoming birthdays get their own set of sensors.",
+          "show_deathdays": "Also create sensors for upcoming death anniversaries.",
+          "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
+          "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week).",
+          "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same."
         }
       }
     },
@@ -30,7 +56,8 @@
       "unknown": "An unknown error occurred"
     },
     "abort": {
-      "already_configured": "This Gramps Web instance is already configured"
+      "already_configured": "This Gramps Web instance is already configured",
+      "reconfigure_successful": "Re-configuration was successful"
     }
   },
   "exceptions": {
@@ -39,6 +66,122 @@
     },
     "birthday_tomorrow_message": {
       "message": "{name} hat morgen Geburtstag!\n\nZukünftiges Alter: {age} Jahre"
+    }
+  },
+  "selector": {
+    "entity_language": {
+      "options": {
+        "en": "English",
+        "ha": "Home Assistant language"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "birthday_name": {
+        "name": "Next Birthday {n} Name"
+      },
+      "birthday_age": {
+        "name": "Next Birthday {n} Age"
+      },
+      "birthday_date": {
+        "name": "Next Birthday {n} Date"
+      },
+      "birthday_upcoming_date": {
+        "name": "Next Birthday {n} Upcoming Date"
+      },
+      "birthday_days_until": {
+        "name": "Next Birthday {n} Days Until"
+      },
+      "birthday_image": {
+        "name": "Next Birthday {n} Image"
+      },
+      "birthday_link": {
+        "name": "Next Birthday {n} Link"
+      },
+      "deceased_birthday_name": {
+        "name": "Next Deceased Birthday {n} Name"
+      },
+      "deceased_birthday_age": {
+        "name": "Next Deceased Birthday {n} Age"
+      },
+      "deceased_birthday_date": {
+        "name": "Next Deceased Birthday {n} Date"
+      },
+      "deceased_birthday_upcoming_date": {
+        "name": "Next Deceased Birthday {n} Upcoming Date"
+      },
+      "deceased_birthday_days_until": {
+        "name": "Next Deceased Birthday {n} Days Until"
+      },
+      "deceased_birthday_image": {
+        "name": "Next Deceased Birthday {n} Image"
+      },
+      "deceased_birthday_link": {
+        "name": "Next Deceased Birthday {n} Link"
+      },
+      "deathday_name": {
+        "name": "Next Deathday {n} Name"
+      },
+      "deathday_date": {
+        "name": "Next Deathday {n} Date"
+      },
+      "deathday_upcoming_date": {
+        "name": "Next Deathday {n} Upcoming Date"
+      },
+      "deathday_years_ago": {
+        "name": "Next Deathday {n} Years Ago"
+      },
+      "deathday_days_until": {
+        "name": "Next Deathday {n} Days Until"
+      },
+      "deathday_image": {
+        "name": "Next Deathday {n} Image"
+      },
+      "deathday_link": {
+        "name": "Next Deathday {n} Link"
+      },
+      "anniversary_name": {
+        "name": "Next Anniversary {n} Name"
+      },
+      "anniversary_years_together": {
+        "name": "Next Anniversary {n} Years Together"
+      },
+      "anniversary_date": {
+        "name": "Next Anniversary {n} Date"
+      },
+      "anniversary_upcoming_date": {
+        "name": "Next Anniversary {n} Upcoming Date"
+      },
+      "anniversary_days_until": {
+        "name": "Next Anniversary {n} Days Until"
+      },
+      "anniversary_image_person_1": {
+        "name": "Next Anniversary {n} Image Person 1"
+      },
+      "anniversary_image_person_2": {
+        "name": "Next Anniversary {n} Image Person 2"
+      },
+      "anniversary_link": {
+        "name": "Next Anniversary {n} Link"
+      },
+      "all_birthdays": {
+        "name": "All Upcoming Birthdays"
+      }
+    }
+  },
+  "device": {
+    "birthdays": {
+      "name": "Birthdays"
+    },
+    "deceased_birthdays": {
+      "name": "Deceased Birthdays"
+    },
+    "deathdays": {
+      "name": "Deathdays"
+    },
+    "anniversaries": {
+      "name": "Anniversaries"
     }
   }
 }
