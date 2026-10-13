@@ -22,5 +22,13 @@
     "abort": {
       "already_configured": "Diese Gramps Web Instanz ist bereits konfiguriert"
     }
+  },
+  "exceptions": {
+    "birthday_tomorrow_title": {
+      "message": "🎉 Geburtstag morgen!"
+    },
+    "birthday_tomorrow_message": {
+      "message": "{name} hat morgen Geburtstag!\n\nZukünftiges Alter: {age} Jahre"
+    }
   }
 }
