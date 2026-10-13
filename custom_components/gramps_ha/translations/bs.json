@@ -1,4 +1,4 @@
-﻿{
+{
   "config": {
     "step": {
       "user": {
@@ -21,6 +21,14 @@
     },
     "abort": {
       "already_configured": "Ova Gramps Web instanca je već konfigurirana"
+    }
+  },
+  "exceptions": {
+    "birthday_tomorrow_title": {
+      "message": "🎉 Rođendan sutra!"
+    },
+    "birthday_tomorrow_message": {
+      "message": "{name} sutra slavi rođendan!\n\nNapunit će {age} godina"
     }
   }
 }
