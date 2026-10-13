@@ -131,3 +131,28 @@ async def test_years_count_to_the_event_day_across_new_year(hass, freezer):
         await midnight(hass, freezer)
     ((_, message),) = shown(hass).values()
     assert message == "Tomorrow it is 37 years since Cat died."
+
+
+async def restart(hass, entry):
+    """HA forgets notifications on restart; the entry then sets up again."""
+    pn._async_get_or_create_notifications(hass).clear()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def test_dismissed_notification_stays_gone_after_restart(hass, hass_storage, freezer):
+    entry, _ = await setup(hass)
+    (nid,) = shown(hass)
+    pn.async_dismiss(hass, nid)
+    freezer.tick(2)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass_storage[f"gramps_ha.{entry.entry_id}.dismissed"]["data"] == [nid]
+    await restart(hass, entry)
+    assert shown(hass) == {}
+
+
+async def test_undismissed_notification_comes_back_after_restart(hass):
+    entry, _ = await setup(hass)
+    await restart(hass, entry)
+    assert len(shown(hass)) == 1
