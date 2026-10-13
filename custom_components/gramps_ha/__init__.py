@@ -75,6 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning("Initial data fetch failed (will retry): %s", refresh_err)
             # Don't fail setup, just log the warning
 
+        coordinator.device_id = device.id  # parent of the per-category devices
         hass.data[DOMAIN][entry.entry_id] = coordinator
 
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
