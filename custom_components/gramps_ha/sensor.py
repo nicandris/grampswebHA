@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.device_registry import DeviceInfo, DeviceEntryType
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -25,6 +26,9 @@ from .const import (
     CONF_SHOW_ANNIVERSARIES,
     DEFAULT_SHOW_DEATHDAYS,
     DEFAULT_SHOW_ANNIVERSARIES,
+    CONF_ENTITY_LANGUAGE,
+    DEFAULT_ENTITY_LANGUAGE,
+    ENTITY_LANGUAGE_HA,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,6 +41,19 @@ async def async_setup_entry(
 ) -> None:
     """Set up Gramps Web sensors from a config entry."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    # Entity and device names: English, or HA's language when chosen in setup.
+    language = (
+        hass.config.language
+        if entry.data.get(CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE) == ENTITY_LANGUAGE_HA
+        else "en"
+    )
+    coordinator.names = {}
+    for category in ("entity", "device"):
+        strings = await async_get_translations(hass, language, category, {DOMAIN})
+        for key, value in strings.items():
+            # component.gramps_ha.entity.sensor.<key>.name / component.gramps_ha.device.<key>.name
+            coordinator.names[key.split(".")[-2]] = value
     
     # Get configuration
     num_birthdays = entry.data.get(CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS)
@@ -115,7 +132,7 @@ class GrampsWebNextBirthdayBase(CoordinatorEntity, SensorEntity):
         config_url = self._entry.data.get(CONF_URL)
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._entry.entry_id}_birthdays")},
-            name="Geburtstage" if self._entry.data.get("language") == "de" else "Birthdays",
+            name=self.coordinator.names["birthdays"],
             manufacturer="Gramps Web",
             model="Birthdays",
             entry_type=DeviceEntryType.SERVICE,
@@ -143,7 +160,7 @@ class GrampsWebNextBirthdayNameSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Name"
+        self._attr_name = coordinator.names["birthday_name"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_name"
 
     @property
@@ -163,7 +180,7 @@ class GrampsWebNextBirthdayAgeSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Age"
+        self._attr_name = coordinator.names["birthday_age"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_age"
 
     @property
@@ -185,7 +202,7 @@ class GrampsWebNextBirthdayDateSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Date"
+        self._attr_name = coordinator.names["birthday_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_date"
 
     @property
@@ -216,7 +233,7 @@ class GrampsWebNextBirthdayUpcomingDateSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Upcoming Date"
+        self._attr_name = coordinator.names["birthday_upcoming_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_upcoming_date"
 
     @property
@@ -245,7 +262,7 @@ class GrampsWebNextBirthdayDaysUntilSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Days Until"
+        self._attr_name = coordinator.names["birthday_days_until"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_days_until"
         self._attr_native_unit_of_measurement = "days"
         self._attr_native_value = 999
@@ -284,7 +301,7 @@ class GrampsWebNextBirthdayImageSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Image"
+        self._attr_name = coordinator.names["birthday_image"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_image"
 
     @property
@@ -314,7 +331,7 @@ class GrampsWebNextBirthdayLinkSensor(GrampsWebNextBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Birthday {index + 1} Link"
+        self._attr_name = coordinator.names["birthday_link"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_link"
         self._entry = entry
 
@@ -355,11 +372,7 @@ class GrampsWebNextDeceasedBirthdayBase(CoordinatorEntity, SensorEntity):
         config_url = self._entry.data.get(CONF_URL)
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._entry.entry_id}_deceased_birthdays")},
-            name=(
-                "Geburtstage Verstorbener"
-                if self._entry.data.get("language") == "de"
-                else "Deceased Birthdays"
-            ),
+            name=self.coordinator.names["deceased_birthdays"],
             manufacturer="Gramps Web",
             model="Deceased Birthdays",
             entry_type=DeviceEntryType.SERVICE,
@@ -387,7 +400,7 @@ class GrampsWebNextDeceasedBirthdayNameSensor(GrampsWebNextDeceasedBirthdayBase)
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Name"
+        self._attr_name = coordinator.names["deceased_birthday_name"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_name"
 
     @property
@@ -405,7 +418,7 @@ class GrampsWebNextDeceasedBirthdayAgeSensor(GrampsWebNextDeceasedBirthdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Age"
+        self._attr_name = coordinator.names["deceased_birthday_age"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_age"
 
     @property
@@ -425,7 +438,7 @@ class GrampsWebNextDeceasedBirthdayDateSensor(GrampsWebNextDeceasedBirthdayBase)
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Date"
+        self._attr_name = coordinator.names["deceased_birthday_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_date"
 
     @property
@@ -456,7 +469,7 @@ class GrampsWebNextDeceasedBirthdayUpcomingDateSensor(GrampsWebNextDeceasedBirth
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Upcoming Date"
+        self._attr_name = coordinator.names["deceased_birthday_upcoming_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_upcoming_date"
 
     @property
@@ -485,7 +498,7 @@ class GrampsWebNextDeceasedBirthdayDaysUntilSensor(GrampsWebNextDeceasedBirthday
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Days Until"
+        self._attr_name = coordinator.names["deceased_birthday_days_until"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_days_until"
         self._attr_native_unit_of_measurement = "days"
 
@@ -510,7 +523,7 @@ class GrampsWebNextDeceasedBirthdayImageSensor(GrampsWebNextDeceasedBirthdayBase
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Image"
+        self._attr_name = coordinator.names["deceased_birthday_image"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_image"
 
     @property
@@ -535,7 +548,7 @@ class GrampsWebNextDeceasedBirthdayLinkSensor(GrampsWebNextDeceasedBirthdayBase)
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deceased Birthday {index + 1} Link"
+        self._attr_name = coordinator.names["deceased_birthday_link"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_link"
 
     @property
@@ -560,7 +573,7 @@ class GrampsWebAllBirthdaysSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._attr_name = "All Upcoming Birthdays"
+        self._attr_name = coordinator.names["all_birthdays"]
         self._attr_unique_id = f"{entry.entry_id}_all_birthdays"
         self._entry = entry
 
@@ -614,7 +627,7 @@ class GrampsWebNextDeathdayBase(CoordinatorEntity, SensorEntity):
         config_url = self._entry.data.get(CONF_URL)
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._entry.entry_id}_deathdays")},
-            name="Gedenktage" if self._entry.data.get("language") == "de" else "Deathdays",
+            name=self.coordinator.names["deathdays"],
             manufacturer="Gramps Web",
             model="Deathdays",
             entry_type=DeviceEntryType.SERVICE,
@@ -636,7 +649,7 @@ class GrampsWebNextAnniversaryBase(CoordinatorEntity, SensorEntity):
         config_url = self._entry.data.get(CONF_URL)
         return DeviceInfo(
             identifiers={(DOMAIN, f"{self._entry.entry_id}_anniversaries")},
-            name="Hochzeitstage" if self._entry.data.get("language") == "de" else "Anniversaries",
+            name=self.coordinator.names["anniversaries"],
             manufacturer="Gramps Web",
             model="Anniversaries",
             entry_type=DeviceEntryType.SERVICE,
@@ -650,7 +663,7 @@ class GrampsWebNextDeathdayNameSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Name"
+        self._attr_name = coordinator.names["deathday_name"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_name"
 
     @property
@@ -676,7 +689,7 @@ class GrampsWebNextDeathdayDateSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Date"
+        self._attr_name = coordinator.names["deathday_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_date"
 
     @property
@@ -709,7 +722,7 @@ class GrampsWebNextDeathdayUpcomingDateSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Upcoming Date"
+        self._attr_name = coordinator.names["deathday_upcoming_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_upcoming_date"
 
     @property
@@ -740,7 +753,7 @@ class GrampsWebNextDeathdayYearsAgoSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Years Ago"
+        self._attr_name = coordinator.names["deathday_years_ago"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_years_ago"
 
     @property
@@ -763,7 +776,7 @@ class GrampsWebNextDeathdayDaysUntilSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Days Until"
+        self._attr_name = coordinator.names["deathday_days_until"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_days_until"
         self._attr_native_unit_of_measurement = "days"
         self._attr_native_value = 999
@@ -795,7 +808,7 @@ class GrampsWebNextDeathdayImageSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Image"
+        self._attr_name = coordinator.names["deathday_image"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_image"
 
     @property
@@ -831,7 +844,7 @@ class GrampsWebNextDeathdayLinkSensor(GrampsWebNextDeathdayBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Deathday {index + 1} Link"
+        self._attr_name = coordinator.names["deathday_link"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_link"
 
     @property
@@ -858,7 +871,7 @@ class GrampsWebNextAnniversaryNameSensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Name"
+        self._attr_name = coordinator.names["anniversary_name"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_name"
 
     @property
@@ -881,7 +894,7 @@ class GrampsWebNextAnniversaryYearsTogetherSensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Years Together"
+        self._attr_name = coordinator.names["anniversary_years_together"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_years_together"
         self._attr_native_unit_of_measurement = "years"
 
@@ -907,7 +920,7 @@ class GrampsWebNextAnniversaryDateSensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Date"
+        self._attr_name = coordinator.names["anniversary_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_date"
 
     @property
@@ -940,7 +953,7 @@ class GrampsWebNextAnniversaryUpcomingDateSensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Upcoming Date"
+        self._attr_name = coordinator.names["anniversary_upcoming_date"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_upcoming_date"
 
     @property
@@ -971,7 +984,7 @@ class GrampsWebNextAnniversaryDaysUntilSensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Days Until"
+        self._attr_name = coordinator.names["anniversary_days_until"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_days_until"
         self._attr_native_unit_of_measurement = "days"
         self._attr_native_value = 999
@@ -1003,7 +1016,7 @@ class GrampsWebNextAnniversaryImagePerson1Sensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Image Person 1"
+        self._attr_name = coordinator.names["anniversary_image_person_1"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_image_person1"
 
     @property
@@ -1039,7 +1052,7 @@ class GrampsWebNextAnniversaryImagePerson2Sensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Image Person 2"
+        self._attr_name = coordinator.names["anniversary_image_person_2"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_image_person2"
 
     @property
@@ -1075,7 +1088,7 @@ class GrampsWebNextAnniversaryLinkSensor(GrampsWebNextAnniversaryBase):
 
     def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
         super().__init__(coordinator, entry, index)
-        self._attr_name = f"Next Anniversary {index + 1} Link"
+        self._attr_name = coordinator.names["anniversary_link"].format(n=index + 1)
         self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_link"
 
     @property

@@ -69,6 +69,9 @@ rm -rf temp
    - **Anzahl Geburtstage**: (optional, Standard: 10) Anzahl der anzuzeigenden Geburtstage/Todestage/Hochzeitstage
    - **Gedenktage anzeigen**: (optional, Standard: Nein) Zeigt die nächsten Todestage/Gedenktage an
    - **Hochzeitstage anzeigen**: (optional, Standard: Nein) Zeigt die nächsten Hochzeitstage/Jahrestage an
+   - **Entitätsnamen**: (Standard: Englisch) Englisch oder die in Home Assistant eingestellte Sprache. Eine Änderung benennt Sensoren und Geräte um; Entitäts-IDs bleiben gleich.
+
+Um diese Einstellungen später zu ändern, öffnen Sie die Integration und wählen im ⋮-Menü **Neu konfigurieren**.
 
 ## Sensoren
 
