@@ -4,6 +4,12 @@ Newest changes first. This is an experimental fork of
 [greewoo/grampswebHA](https://github.com/greewoo/grampswebHA), originally
 [EdgarM73/grampswebHA](https://github.com/EdgarM73/grampswebHA).
 
+## 2026.10.3
+
+- Fixed: a dismissed notification came back after every Home Assistant restart on the day
+  before the event. Dismissals are now stored and survive restarts; a notification you did
+  not dismiss still shows again after a restart.
+
 ## 2026.10.2
 
 - Notifications are configurable in setup and **Reconfigure**:
