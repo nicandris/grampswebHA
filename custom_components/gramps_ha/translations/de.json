@@ -11,7 +11,8 @@
           "num_birthdays": "Anzahl Geburtstage (optional)",
           "show_deathdays": "Todestage/Gedenktage anzeigen",
           "show_anniversaries": "Hochzeitstage anzeigen",
-          "scan_interval": "Aktualisierungsintervall (Stunden)"
+          "scan_interval": "Aktualisierungsintervall (Stunden)",
+          "entity_language": "Entitätsnamen"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. https://gramps.example.com",
@@ -20,7 +21,32 @@
           "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
           "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
           "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
-          "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche)."
+          "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
+          "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich."
+        }
+      },
+      "reconfigure": {
+        "title": "Gramps HA neu konfigurieren",
+        "description": "Einstellungen dieser Gramps Web Verbindung ändern",
+        "data": {
+          "url": "URL",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "num_birthdays": "Anzahl Geburtstage (optional)",
+          "show_deathdays": "Todestage/Gedenktage anzeigen",
+          "show_anniversaries": "Hochzeitstage anzeigen",
+          "scan_interval": "Aktualisierungsintervall (Stunden)",
+          "entity_language": "Entitätsnamen"
+        },
+        "data_description": {
+          "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. https://gramps.example.com",
+          "username": "Ein Gramps Web Benutzer. Ein Konto mit der Rolle Mitglied (nur lesen) genügt.",
+          "password": "Passwort dieses Gramps Web Benutzers.",
+          "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
+          "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
+          "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
+          "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
+          "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich."
         }
       }
     },
@@ -30,7 +56,8 @@
       "unknown": "Ein unbekannter Fehler ist aufgetreten"
     },
     "abort": {
-      "already_configured": "Diese Gramps Web Instanz ist bereits konfiguriert"
+      "already_configured": "Diese Gramps Web Instanz ist bereits konfiguriert",
+      "reconfigure_successful": "Neukonfiguration erfolgreich"
     }
   },
   "exceptions": {
@@ -39,6 +66,122 @@
     },
     "birthday_tomorrow_message": {
       "message": "{name} hat morgen Geburtstag!\n\nZukünftiges Alter: {age} Jahre"
+    }
+  },
+  "selector": {
+    "entity_language": {
+      "options": {
+        "en": "Englisch",
+        "ha": "Home-Assistant-Sprache"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "birthday_name": {
+        "name": "Nächster Geburtstag {n} Name"
+      },
+      "birthday_age": {
+        "name": "Nächster Geburtstag {n} Alter"
+      },
+      "birthday_date": {
+        "name": "Nächster Geburtstag {n} Datum"
+      },
+      "birthday_upcoming_date": {
+        "name": "Nächster Geburtstag {n} Kommendes Datum"
+      },
+      "birthday_days_until": {
+        "name": "Nächster Geburtstag {n} Tage bis"
+      },
+      "birthday_image": {
+        "name": "Nächster Geburtstag {n} Bild"
+      },
+      "birthday_link": {
+        "name": "Nächster Geburtstag {n} Link"
+      },
+      "deceased_birthday_name": {
+        "name": "Nächster Geburtstag Verstorbener {n} Name"
+      },
+      "deceased_birthday_age": {
+        "name": "Nächster Geburtstag Verstorbener {n} Alter"
+      },
+      "deceased_birthday_date": {
+        "name": "Nächster Geburtstag Verstorbener {n} Datum"
+      },
+      "deceased_birthday_upcoming_date": {
+        "name": "Nächster Geburtstag Verstorbener {n} Kommendes Datum"
+      },
+      "deceased_birthday_days_until": {
+        "name": "Nächster Geburtstag Verstorbener {n} Tage bis"
+      },
+      "deceased_birthday_image": {
+        "name": "Nächster Geburtstag Verstorbener {n} Bild"
+      },
+      "deceased_birthday_link": {
+        "name": "Nächster Geburtstag Verstorbener {n} Link"
+      },
+      "deathday_name": {
+        "name": "Nächster Todestag {n} Name"
+      },
+      "deathday_date": {
+        "name": "Nächster Todestag {n} Datum"
+      },
+      "deathday_upcoming_date": {
+        "name": "Nächster Todestag {n} Kommendes Datum"
+      },
+      "deathday_years_ago": {
+        "name": "Nächster Todestag {n} Jahre her"
+      },
+      "deathday_days_until": {
+        "name": "Nächster Todestag {n} Tage bis"
+      },
+      "deathday_image": {
+        "name": "Nächster Todestag {n} Bild"
+      },
+      "deathday_link": {
+        "name": "Nächster Todestag {n} Link"
+      },
+      "anniversary_name": {
+        "name": "Nächster Hochzeitstag {n} Name"
+      },
+      "anniversary_years_together": {
+        "name": "Nächster Hochzeitstag {n} Jahre verheiratet"
+      },
+      "anniversary_date": {
+        "name": "Nächster Hochzeitstag {n} Datum"
+      },
+      "anniversary_upcoming_date": {
+        "name": "Nächster Hochzeitstag {n} Kommendes Datum"
+      },
+      "anniversary_days_until": {
+        "name": "Nächster Hochzeitstag {n} Tage bis"
+      },
+      "anniversary_image_person_1": {
+        "name": "Nächster Hochzeitstag {n} Bild Person 1"
+      },
+      "anniversary_image_person_2": {
+        "name": "Nächster Hochzeitstag {n} Bild Person 2"
+      },
+      "anniversary_link": {
+        "name": "Nächster Hochzeitstag {n} Link"
+      },
+      "all_birthdays": {
+        "name": "Alle kommenden Geburtstage"
+      }
+    }
+  },
+  "device": {
+    "birthdays": {
+      "name": "Geburtstage"
+    },
+    "deceased_birthdays": {
+      "name": "Geburtstage Verstorbener"
+    },
+    "deathdays": {
+      "name": "Gedenktage"
+    },
+    "anniversaries": {
+      "name": "Hochzeitstage"
     }
   }
 }
