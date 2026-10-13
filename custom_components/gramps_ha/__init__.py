@@ -26,13 +26,25 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 SCAN_INTERVAL = timedelta(hours=6)
 
-# Notifiable event lists: kind -> (date key, years key) in each entry
+# Notifiable event lists: kind -> (event date key, original date key) in each entry
 NOTIFY_KEYS = {
-    "birthdays": ("next_birthday", "age"),
-    "deceased_birthdays": ("next_birthday", "age"),
-    "deathdays": ("next_deathday", "years_ago"),
-    "anniversaries": ("next_anniversary", "years_together"),
+    "birthdays": ("next_birthday", "birth_date"),
+    "deceased_birthdays": ("next_birthday", "birth_date"),
+    "deathdays": ("next_deathday", "death_date"),
+    "anniversaries": ("next_anniversary", "marriage_date"),
 }
+
+
+def _years(event: dict, date_key: str, origin_key: str) -> int | str:
+    """Years reached on the event day, from the dates themselves.
+
+    The lists' own age/years fields are computed on the fetch day, so they
+    are one short when a fetch before New Year serves an event after it.
+    """
+    try:
+        return int(str(event[date_key])[:4]) - int(str(event[origin_key])[:4])
+    except (KeyError, TypeError, ValueError):
+        return "?"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -220,11 +232,10 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         prefix = f"component.{DOMAIN}.exceptions"
 
         for kind in kinds:
-            date_key, years_key = NOTIFY_KEYS[kind]
-            # years is already the count reached on the event day
+            date_key, origin_key = NOTIFY_KEYS[kind]
             messages = [
                 strings[f"{prefix}.{kind}_message.message"].format(
-                    name=event.get("person_name"), years=event.get(years_key, "?")
+                    name=event.get("person_name"), years=_years(event, date_key, origin_key)
                 )
                 for event in self._events(kind)
                 if str(event.get(date_key, ""))[:10] == tomorrow
