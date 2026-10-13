@@ -1,0 +1,133 @@
+"""Notification settings: which events, lifetime, daily schedule."""
+from datetime import timedelta
+from unittest.mock import patch
+
+import pytest
+import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
+from homeassistant.components import persistent_notification as pn
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+
+DOMAIN = "gramps_ha"
+API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
+BASE = {"url": "https://gramps.example", "username": "u", "password": "p",
+        "num_birthdays": 1, "show_deathdays": False, "show_anniversaries": False, "scan_interval": 168}
+START = "2026-03-10 12:00:00"  # local time
+
+
+def day(n):  # date n days after START
+    return (dt_util.parse_datetime(START).date() + timedelta(days=n)).isoformat()
+
+
+def lists(offset):
+    return {
+        "get_birthdays": [{"person_name": "Ann", "birth_date": "1982-03-11", "next_birthday": day(offset), "age": 44, "days_until": offset}],
+        "get_deceased_birthdays": [{"person_name": "Bob", "birth_date": "1936-03-11", "next_birthday": day(offset), "age": 90, "days_until": offset}],
+        "get_deathdays": [{"person_name": "Cat", "death_date": "2019-03-11", "next_deathday": day(offset), "years_ago": 7, "days_until": offset}],
+        "get_anniversaries": [{"person_name": "Dan & Eve", "marriage_date": "2001-03-11", "next_anniversary": day(offset), "years_together": 25, "days_until": offset}],
+    }
+
+
+def shown(hass):
+    return {k: (v["title"], v["message"]) for k, v in pn._async_get_or_create_notifications(hass).items()}
+
+
+async def setup(hass, offset=1, **extra):
+    data = lists(offset)
+    patches = [patch(f"{API}.{name}", return_value=value) for name, value in data.items()]
+    for p in patches:
+        p.start()
+    entry = MockConfigEntry(domain=DOMAIN, data={**BASE, **extra}, title="Gramps HA")
+    entry.add_to_hass(hass)
+    global ENTRY_ID
+    ENTRY_ID = entry.entry_id
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    return entry, patches
+
+
+@pytest.fixture(autouse=True)
+async def _env(enable_custom_integrations, freezer, hass):
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    freezer.move_to(dt_util.parse_datetime(START).replace(tzinfo=dt_util.get_time_zone("Europe/Amsterdam")))
+    yield
+    patch.stopall()
+
+
+async def midnight(hass, freezer):
+    nxt = dt_util.start_of_local_day(dt_util.now() + timedelta(days=1)) + timedelta(seconds=5)
+    freezer.move_to(nxt)
+    async_fire_time_changed(hass, nxt)
+    await hass.async_block_till_done()
+
+
+async def test_default_notifies_living_birthdays_only(hass):
+    await setup(hass)
+    n = shown(hass)
+    assert list(n) == [f"gramps_ha_{ENTRY_ID}_birthdays_{day(1)}"]
+    assert n[f"gramps_ha_{ENTRY_ID}_birthdays_{day(1)}"] == ("🎉 Birthday tomorrow!", "Ann has a birthday tomorrow!\n\nTurning 44")
+
+
+async def test_empty_selection_turns_notifications_off(hass):
+    await setup(hass, notify_events=[])
+    assert shown(hass) == {}
+
+
+async def test_every_kind_has_its_text(hass):
+    await setup(hass, notify_events=["birthdays", "deceased_birthdays", "deathdays", "anniversaries"])
+    msgs = sorted(m for _, m in shown(hass).values())
+    assert msgs == sorted([
+        "Ann has a birthday tomorrow!\n\nTurning 44",
+        "Bob would have turned 90 tomorrow.",
+        "Tomorrow it is 7 years since Cat died.",
+        "Dan & Eve celebrate 25 years together tomorrow!",
+    ])
+
+
+async def test_daily_job_catches_birthdays_between_weekly_fetches(hass, freezer):
+    await setup(hass, offset=3)  # fetched once; birthday in 3 days
+    assert shown(hass) == {}
+    await midnight(hass, freezer)  # day 1: birthday is in 2 days
+    assert shown(hass) == {}
+    await midnight(hass, freezer)  # day 2: tomorrow
+    assert list(shown(hass)) == [f"gramps_ha_{ENTRY_ID}_birthdays_{day(3)}"]
+
+
+@pytest.mark.parametrize(("mode", "kept"), [("until_dismissed", True), ("until_over", False)])
+async def test_lifetime(hass, freezer, mode, kept):
+    await setup(hass, notify_mode=mode)
+    await midnight(hass, freezer)  # the birthday itself: still shown
+    assert len(shown(hass)) == 1
+    await midnight(hass, freezer)  # day after
+    assert (len(shown(hass)) == 1) is kept
+
+
+async def test_same_day_birthdays_share_one_notification(hass):
+    data = lists(1)
+    data["get_birthdays"].append({"person_name": "Zoe", "birth_date": "2023-03-11", "next_birthday": day(1), "age": 3, "days_until": 1})
+    for name, value in data.items():
+        patch(f"{API}.{name}", return_value=value).start()
+    entry = MockConfigEntry(domain=DOMAIN, data=BASE, title="Gramps HA")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    ((title, message),) = shown(hass).values()
+    assert message == "Ann has a birthday tomorrow!\n\nTurning 44\n\nZoe has a birthday tomorrow!\n\nTurning 3"
+
+
+async def test_years_count_to_the_event_day_across_new_year(hass, freezer):
+    # Fetched on 28 Dec: the API computes years_ago with that year (36), but on
+    # 1 Jan 2027 it is 37 years since a 1 Jan 1990 death.
+    data = lists(1)
+    data["get_deathdays"] = [{"person_name": "Cat", "death_date": "1990-01-01", "next_deathday": "2027-01-01", "years_ago": 36, "days_until": 4}]
+    for name, value in data.items():
+        patch(f"{API}.{name}", return_value=value).start()
+    freezer.move_to(dt_util.parse_datetime("2026-12-28 12:00:00").replace(tzinfo=dt_util.get_time_zone("Europe/Amsterdam")))
+    entry = MockConfigEntry(domain=DOMAIN, data={**BASE, "notify_events": ["deathdays"]}, title="Gramps HA")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    for _ in range(3):  # 29, 30, 31 Dec
+        await midnight(hass, freezer)
+    ((_, message),) = shown(hass).values()
+    assert message == "Tomorrow it is 37 years since Cat died."

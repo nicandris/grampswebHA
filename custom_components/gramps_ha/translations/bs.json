@@ -12,10 +12,14 @@
           "show_deathdays": "Prikaži datume smrti/komemoracije",
           "show_anniversaries": "Prikaži godišnjice braka",
           "scan_interval": "Interval ažuriranja (sati)",
-          "entity_language": "Nazivi entiteta"
+          "entity_language": "Nazivi entiteta",
+          "notify_events": "Obavijesti dan ranije",
+          "notify_mode": "Trajanje obavijesti"
         },
         "data_description": {
-          "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti."
+          "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
+          "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
+          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
         }
       },
       "reconfigure": {
@@ -29,10 +33,14 @@
           "show_deathdays": "Prikaži datume smrti/komemoracije",
           "show_anniversaries": "Prikaži godišnjice braka",
           "scan_interval": "Interval ažuriranja (sati)",
-          "entity_language": "Nazivi entiteta"
+          "entity_language": "Nazivi entiteta",
+          "notify_events": "Obavijesti dan ranije",
+          "notify_mode": "Trajanje obavijesti"
         },
         "data_description": {
-          "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti."
+          "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
+          "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
+          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
         }
       }
     },
@@ -47,11 +55,29 @@
     }
   },
   "exceptions": {
-    "birthday_tomorrow_title": {
+    "birthdays_title": {
       "message": "🎉 Rođendan sutra!"
     },
-    "birthday_tomorrow_message": {
-      "message": "{name} sutra slavi rođendan!\n\nNapunit će {age} godina"
+    "birthdays_message": {
+      "message": "{name} sutra slavi rođendan!\n\nNapunit će {years} godina"
+    },
+    "deceased_birthdays_title": {
+      "message": "🕯️ Rođendan sutra"
+    },
+    "deceased_birthdays_message": {
+      "message": "{name} bi sutra napunio/la {years} godina."
+    },
+    "deathdays_title": {
+      "message": "🕯️ Dan sjećanja sutra"
+    },
+    "deathdays_message": {
+      "message": "Sutra je {years} godina od smrti osobe {name}."
+    },
+    "anniversaries_title": {
+      "message": "💍 Godišnjica braka sutra!"
+    },
+    "anniversaries_message": {
+      "message": "{name} sutra slave {years} godina braka!"
     }
   },
   "selector": {
@@ -59,6 +85,20 @@
       "options": {
         "en": "Engleski",
         "ha": "Jezik Home Assistanta"
+      }
+    },
+    "notify_events": {
+      "options": {
+        "birthdays": "Rođendani",
+        "deceased_birthdays": "Rođendani preminulih",
+        "deathdays": "Godišnjice smrti",
+        "anniversaries": "Godišnjice braka"
+      }
+    },
+    "notify_mode": {
+      "options": {
+        "until_dismissed": "Dok se ne zatvori",
+        "until_over": "Dok dan ne prođe"
       }
     }
   },

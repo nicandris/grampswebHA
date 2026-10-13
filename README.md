@@ -132,7 +132,12 @@ If the "Show Anniversaries" option is enabled, 8 sensors are created for each of
 
 ## Notifications
 
-The integration can optionally send notifications (currently experimental).
+The day before an event, the integration shows a Home Assistant notification (in the language Home Assistant is set to). Two settings, also changeable later via **Reconfigure**:
+
+- **Notify the day before**: birthdays, birthdays of the deceased, deathdays and/or anniversaries. Default: birthdays. Leave it empty to turn notifications off.
+- **Notification lifetime**: *Until dismissed* (default), or *Until the day is over*, which removes it automatically after the event day.
+
+The check runs daily just after midnight, independent of the update interval. Events on the same day share one notification.
 
 ## Dashboard Configuration
 
