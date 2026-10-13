@@ -6,8 +6,9 @@ from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.device_registry import (
     async_get as async_get_device_registry,
     DeviceEntryType,
@@ -102,6 +103,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
         # Notifications run daily on the cached lists, not on each (weekly) fetch.
+        # Dismissals are stored: HA forgets notifications on restart, and the
+        # startup check would otherwise bring a dismissed one back.
+        coordinator.dismissed_store = _dismissed_store(hass, entry)
+        coordinator.dismissed = set(await coordinator.dismissed_store.async_load() or [])
+        entry.async_on_unload(
+            persistent_notification.async_register_callback(hass, coordinator.on_notification_update)
+        )
         await coordinator.async_notify()
         entry.async_on_unload(
             async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
@@ -113,6 +121,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         _LOGGER.error("Failed to setup Gramps HA: %s", err, exc_info=True)
         return False
+
+
+def _dismissed_store(hass: HomeAssistant, entry: ConfigEntry) -> Store:
+    return Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.dismissed")
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Delete the stored dismissals with the entry."""
+    await _dismissed_store(hass, entry).async_remove()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -205,6 +222,16 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             return self.data or []
         return self.hass.data.get(f"{DOMAIN}_{kind}", {}).get(self.entry.entry_id) or []
 
+    @callback
+    def on_notification_update(self, update_type, notifications) -> None:
+        """Remember which of our notifications were dismissed."""
+        if update_type != persistent_notification.UpdateType.REMOVED:
+            return
+        prefix = f"{DOMAIN}_{self.entry.entry_id}_"
+        if new := {nid for nid in notifications if nid.startswith(prefix)} - self.dismissed:
+            self.dismissed |= new
+            self.dismissed_store.async_delay_save(lambda: sorted(self.dismissed), 1)
+
     async def async_notify(self, now=None) -> None:
         """Notify about tomorrow's events and remove finished notifications.
 
@@ -224,6 +251,11 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             for kind in NOTIFY_KEYS:
                 persistent_notification.async_dismiss(self.hass, notification_id(kind, yesterday))
 
+        # Forget dismissals of events that are over (ids end in the event date).
+        if old := {nid for nid in self.dismissed if nid[-10:] < today.isoformat()}:
+            self.dismissed -= old
+            self.dismissed_store.async_delay_save(lambda: sorted(self.dismissed), 1)
+
         if not kinds:
             return
         strings = await async_get_translations(
@@ -240,7 +272,7 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
                 for event in self._events(kind)
                 if str(event.get(date_key, ""))[:10] == tomorrow
             ]
-            if messages:
+            if messages and notification_id(kind, tomorrow) not in self.dismissed:
                 persistent_notification.async_create(
                     self.hass,
                     "\n\n".join(messages),
