@@ -137,7 +137,7 @@ class GrampsWebNextBirthdayBase(CoordinatorEntity, SensorEntity):
             model="Birthdays",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=config_url,
-            via_device=(DOMAIN, self._entry.entry_id),
+            via_device_id=self.coordinator.device_id,
         )
 
     @property
@@ -377,7 +377,7 @@ class GrampsWebNextDeceasedBirthdayBase(CoordinatorEntity, SensorEntity):
             model="Deceased Birthdays",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=config_url,
-            via_device=(DOMAIN, self._entry.entry_id),
+            via_device_id=self.coordinator.device_id,
         )
 
     @property
@@ -632,7 +632,7 @@ class GrampsWebNextDeathdayBase(CoordinatorEntity, SensorEntity):
             model="Deathdays",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=config_url,
-            via_device=(DOMAIN, self._entry.entry_id),
+            via_device_id=self.coordinator.device_id,
         )
 
 
@@ -654,7 +654,7 @@ class GrampsWebNextAnniversaryBase(CoordinatorEntity, SensorEntity):
             model="Anniversaries",
             entry_type=DeviceEntryType.SERVICE,
             configuration_url=config_url,
-            via_device=(DOMAIN, self._entry.entry_id),
+            via_device_id=self.coordinator.device_id,
         )
 
 

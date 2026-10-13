@@ -22,6 +22,9 @@ from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_NUM_BIRT
 
 _LOGGER = logging.getLogger(__name__)
 
+# hassfest rejects URLs inside translation strings
+PLACEHOLDERS = {"example_url": "https://gramps.example.com"}
+
 
 def _schema(values: dict[str, Any]) -> vol.Schema:
     """Form schema, pre-filled from values (empty for a new entry)."""
@@ -80,6 +83,7 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=_schema(user_input or {}),
             errors=errors,
+            description_placeholders=PLACEHOLDERS,
         )
 
     async def async_step_reconfigure(
@@ -97,4 +101,5 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reconfigure",
             data_schema=_schema({**entry.data, **(user_input or {})}),
             errors=errors,
+            description_placeholders=PLACEHOLDERS,
         )

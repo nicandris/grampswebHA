@@ -1,13 +1,13 @@
 {
   "domain": "gramps_ha",
   "name": "Gramps HA",
-  "codeowners": ["@EdgarM73"],
+  "codeowners": ["@nicandris"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/greewoo/grampswebHA",
+  "documentation": "https://github.com/nicandris/grampswebHA",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/greewoo/grampswebHA/issues",
-  "requirements": ["requests>=2.28.0"],
+  "issue_tracker": "https://github.com/nicandris/grampswebHA/issues",
+  "requirements": [],
   "version": "2026.10.1"
 }
 
