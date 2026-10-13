@@ -7,7 +7,7 @@
   "documentation": "https://github.com/nicandris/grampswebHA",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/nicandris/grampswebHA/issues",
-  "requirements": ["requests>=2.32.5"],
+  "requirements": [],
   "version": "2026.10.1"
 }
 

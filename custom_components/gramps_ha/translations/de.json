@@ -15,7 +15,7 @@
           "entity_language": "Entitätsnamen"
         },
         "data_description": {
-          "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. https://gramps.example.com",
+          "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
           "username": "Ein Gramps Web Benutzer. Ein Konto mit der Rolle Mitglied (nur lesen) genügt.",
           "password": "Passwort dieses Gramps Web Benutzers.",
           "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
@@ -39,7 +39,7 @@
           "entity_language": "Entitätsnamen"
         },
         "data_description": {
-          "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. https://gramps.example.com",
+          "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
           "username": "Ein Gramps Web Benutzer. Ein Konto mit der Rolle Mitglied (nur lesen) genügt.",
           "password": "Passwort dieses Gramps Web Benutzers.",
           "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
