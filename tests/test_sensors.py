@@ -194,3 +194,11 @@ async def test_link_and_image_sensors_are_opt_in(hass, enable_custom_integration
         if e.disabled_by and e.domain == "sensor"
     }
     assert disabled == {k for k in BEFORE if k.endswith(("_link", "_image", "_image_person1", "_image_person2"))} | {"all_birthdays"}
+
+
+async def test_new_data_replaces_the_cached_lists(hass, enable_custom_integrations):
+    entry = await setup(hass, {**EMPTY, "birthdays": [{"person_name": "Ann", "birth_date": "1980-01-01"}]})
+    coordinator = entry.runtime_data
+    assert [e["person_name"] for e in coordinator.events("birthdays")] == ["Ann"]
+    coordinator.async_set_updated_data({**EMPTY, "birthdays": [{"person_name": "Bob", "birth_date": "1980-01-01"}]})
+    assert [e["person_name"] for e in coordinator.events("birthdays")] == ["Bob"]
