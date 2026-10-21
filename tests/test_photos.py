@@ -2,10 +2,13 @@
 from unittest.mock import patch
 
 from homeassistant.components.image import async_get_image
+from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
+import pytest
 from custom_components.gramps_ha import _remove_downloaded_photos
+from custom_components.gramps_ha.grampsweb_api import GrampsWebError
 
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
 DATA = {"url": "https://g.example", "username": "u", "password": "p", "num_birthdays": 1,
@@ -57,3 +60,29 @@ async def test_setup_cleans_www_gramps(hass, enable_custom_integrations):
     with patch("custom_components.gramps_ha._remove_downloaded_photos") as remove:
         await setup(hass)
     remove.assert_called_once_with(hass.config.path("www", "gramps"))
+
+
+async def test_refresh_drops_the_cached_photo(hass, enable_custom_integrations):
+    entry = await setup(hass)
+    entity_id = "image.birthdays_next_birthday_1_photo"
+    with patch(f"{API}.get_thumbnail", return_value=b"old"):
+        assert (await async_get_image(hass, entity_id)).content == b"old"
+    with patch(f"{API}.fetch", return_value={**RAW}):  # each fetch returns new data
+        await entry.runtime_data.async_refresh()
+    with patch(f"{API}.get_thumbnail", return_value=b"new"):
+        assert (await async_get_image(hass, entity_id)).content == b"new"
+
+
+async def test_failed_photo_is_logged_once_until_next_refresh(hass, enable_custom_integrations, caplog):
+    entry = await setup(hass)
+    entity_id = "image.birthdays_next_birthday_1_photo"
+    with patch(f"{API}.get_thumbnail", side_effect=GrampsWebError("down")) as thumbnail:
+        for _ in range(3):
+            with pytest.raises(HomeAssistantError):
+                await async_get_image(hass, entity_id)
+    assert thumbnail.call_count == 1
+    assert caplog.text.count("Could not load photo") == 1
+    with patch(f"{API}.fetch", return_value={**RAW}):  # each fetch returns new data
+        await entry.runtime_data.async_refresh()
+    with patch(f"{API}.get_thumbnail", return_value=b"back"):
+        assert (await async_get_image(hass, entity_id)).content == b"back"
