@@ -152,3 +152,9 @@ async def test_all_birthdays_is_opt_in_and_not_recorded(recorder_mock, hass, ena
         get_significant_states, hass, dt_util.utcnow() - timedelta(hours=1), None, [entity_id]
     )
     assert history[entity_id] and all("birthdays" not in s.attributes for s in history[entity_id])
+
+
+async def test_deceased_birthdays_can_be_turned_off(hass, enable_custom_integrations):
+    entry = await setup(hass, EMPTY, {**DATA, "show_deceased_birthdays": False})
+    assert registry(hass, entry) == {k: v for k, v in BEFORE.items() if not k.startswith("deceased_")}
+    assert not any(k.startswith("deceased_") for k in registry(hass, entry, "image"))

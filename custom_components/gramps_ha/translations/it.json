@@ -14,12 +14,14 @@
           "scan_interval": "Intervallo di aggiornamento (ore)",
           "entity_language": "Nomi delle entità",
           "notify_events": "Notifica il giorno prima",
-          "notify_mode": "Durata della notifica"
+          "notify_mode": "Durata della notifica",
+          "show_deceased_birthdays": "Mostra i compleanni dei defunti"
         },
         "data_description": {
           "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
           "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
-          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata."
+          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata.",
+          "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute."
         }
       },
       "reconfigure": {
@@ -35,12 +37,14 @@
           "scan_interval": "Intervallo di aggiornamento (ore)",
           "entity_language": "Nomi delle entità",
           "notify_events": "Notifica il giorno prima",
-          "notify_mode": "Durata della notifica"
+          "notify_mode": "Durata della notifica",
+          "show_deceased_birthdays": "Mostra i compleanni dei defunti"
         },
         "data_description": {
           "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
           "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
-          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata."
+          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata.",
+          "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute."
         }
       },
       "reauth_confirm": {

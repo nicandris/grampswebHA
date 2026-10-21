@@ -14,12 +14,14 @@
           "scan_interval": "Intervalle de mise à jour (heures)",
           "entity_language": "Noms des entités",
           "notify_events": "Notifier la veille",
-          "notify_mode": "Durée de la notification"
+          "notify_mode": "Durée de la notification",
+          "show_deceased_birthdays": "Afficher les anniversaires des défunts"
         },
         "data_description": {
           "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés.",
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
-          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée."
+          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée.",
+          "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées."
         }
       },
       "reconfigure": {
@@ -35,12 +37,14 @@
           "scan_interval": "Intervalle de mise à jour (heures)",
           "entity_language": "Noms des entités",
           "notify_events": "Notifier la veille",
-          "notify_mode": "Durée de la notification"
+          "notify_mode": "Durée de la notification",
+          "show_deceased_birthdays": "Afficher les anniversaires des défunts"
         },
         "data_description": {
           "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés.",
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
-          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée."
+          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée.",
+          "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées."
         }
       },
       "reauth_confirm": {
