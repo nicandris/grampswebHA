@@ -50,9 +50,8 @@
       },
       "reauth_confirm": {
         "title": "Accedi di nuovo a Gramps Web",
-        "description": "Gramps Web ({url}) ha rifiutato le credenziali salvate. Inserisci nome utente e password attuali.",
+        "description": "Gramps Web ({url}) ha rifiutato le credenziali salvate. Inserisci la password attuale.",
         "data": {
-          "username": "Nome utente",
           "password": "Password"
         }
       }

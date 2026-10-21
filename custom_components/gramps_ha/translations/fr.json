@@ -50,9 +50,8 @@
       },
       "reauth_confirm": {
         "title": "Se reconnecter à Gramps Web",
-        "description": "Gramps Web ({url}) a refusé les identifiants enregistrés. Saisissez le nom d'utilisateur et le mot de passe actuels.",
+        "description": "Gramps Web ({url}) a refusé les identifiants enregistrés. Saisissez le mot de passe actuel.",
         "data": {
-          "username": "Nom d'utilisateur",
           "password": "Mot de passe"
         }
       }

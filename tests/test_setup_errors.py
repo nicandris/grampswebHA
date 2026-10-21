@@ -46,11 +46,11 @@ async def test_rejected_login_starts_reauth(hass):
     assert flow["context"]["source"] == config_entries.SOURCE_REAUTH and flow["step_id"] == "reauth_confirm"
 
     with patch(f"{API}.test_connection", side_effect=GrampsWebAuthError("no")):
-        result = await hass.config_entries.flow.async_configure(flow["flow_id"], {"username": "u", "password": "bad"})
+        result = await hass.config_entries.flow.async_configure(flow["flow_id"], {"password": "bad"})
     assert result["errors"] == {"base": "invalid_auth"}
 
     with patch(f"{API}.test_connection"), patch(f"{API}.fetch", return_value=RAW):
-        result = await hass.config_entries.flow.async_configure(flow["flow_id"], {"username": "u", "password": "new"})
+        result = await hass.config_entries.flow.async_configure(flow["flow_id"], {"password": "new"})
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.ABORT and result["reason"] == "reauth_successful"
     assert entry.data["password"] == "new"
@@ -112,3 +112,11 @@ def test_client_ignores_spaces_in_a_stored_url():
     from custom_components.gramps_ha.grampsweb_api import GrampsWebAPI
 
     assert GrampsWebAPI(" https://gramps.example/ ").url == "https://gramps.example"
+
+
+async def test_reauth_cannot_change_the_username(hass):
+    entry = await setup(hass, GrampsWebAuthError("no"))
+    (flow,) = hass.config_entries.flow.async_progress()
+    result = await hass.config_entries.flow.async_configure(flow["flow_id"])
+    assert [str(key) for key in result["data_schema"].schema] == ["password"]
+    assert entry.data["username"] == "u"

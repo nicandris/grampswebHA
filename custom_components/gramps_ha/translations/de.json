@@ -63,9 +63,8 @@
       },
       "reauth_confirm": {
         "title": "Erneut bei Gramps Web anmelden",
-        "description": "Gramps Web unter {url} hat die gespeicherte Anmeldung abgelehnt. Gib den aktuellen Benutzernamen und das Passwort ein.",
+        "description": "Gramps Web unter {url} hat die gespeicherte Anmeldung abgelehnt. Gib das aktuelle Passwort ein.",
         "data": {
-          "username": "Benutzername",
           "password": "Passwort"
         }
       }
