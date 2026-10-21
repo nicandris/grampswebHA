@@ -42,16 +42,26 @@
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
           "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée."
         }
+      },
+      "reauth_confirm": {
+        "title": "Se reconnecter à Gramps Web",
+        "description": "Gramps Web ({url}) a refusé les identifiants enregistrés. Saisissez le nom d'utilisateur et le mot de passe actuels.",
+        "data": {
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe"
+        }
       }
     },
     "error": {
       "cannot_connect": "Échec de la connexion",
       "invalid_url": "URL invalide",
-      "unknown": "Une erreur inconnue s'est produite"
+      "unknown": "Une erreur inconnue s'est produite",
+      "invalid_auth": "Gramps Web a refusé le nom d'utilisateur ou le mot de passe"
     },
     "abort": {
       "already_configured": "Cette instance Gramps Web est déjà configurée",
-      "reconfigure_successful": "Reconfiguration réussie"
+      "reconfigure_successful": "Reconfiguration réussie",
+      "reauth_successful": "Réauthentification réussie"
     }
   },
   "exceptions": {

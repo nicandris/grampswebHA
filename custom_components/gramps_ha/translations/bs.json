@@ -42,16 +42,26 @@
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
           "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
         }
+      },
+      "reauth_confirm": {
+        "title": "Ponovo se prijavite na Gramps Web",
+        "description": "Gramps Web ({url}) je odbio sačuvanu prijavu. Unesite trenutno korisničko ime i lozinku.",
+        "data": {
+          "username": "Korisničko ime",
+          "password": "Lozinka"
+        }
       }
     },
     "error": {
       "cannot_connect": "Povezivanje nije uspjelo",
       "invalid_url": "Nevažeći URL",
-      "unknown": "Došlo je do nepoznate greške"
+      "unknown": "Došlo je do nepoznate greške",
+      "invalid_auth": "Gramps Web je odbio korisničko ime ili lozinku"
     },
     "abort": {
       "already_configured": "Ova Gramps Web instanca je već konfigurirana",
-      "reconfigure_successful": "Ponovna konfiguracija uspješna"
+      "reconfigure_successful": "Ponovna konfiguracija uspješna",
+      "reauth_successful": "Ponovna prijava je uspjela"
     }
   },
   "exceptions": {
