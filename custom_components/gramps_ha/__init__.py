@@ -71,7 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         configuration_url=url,
     )
     coordinator.device_id = device.id  # parent of the per-category devices
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -101,9 +101,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        hass.data[DOMAIN].pop(entry.entry_id)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 class GrampsWebCoordinator(DataUpdateCoordinator):
@@ -122,7 +120,6 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.entry = entry
-        self.last_birthdays = []  # Track previous list for comparison
 
     async def _async_update_data(self):
         """Fetch data from API."""
@@ -133,16 +130,11 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             raise ConfigEntryAuthFailed(str(err)) from err
         except GrampsWebError as err:
             raise UpdateFailed(f"Error communicating with Gramps Web: {err}") from err
-        lists = {kind: upcoming(kind, entries, today)[:LIST_LIMIT] for kind, entries in raw.items()}
-        for kind in ("deceased_birthdays", "deathdays", "anniversaries"):
-            self.hass.data.setdefault(f"{DOMAIN}_{kind}", {})[self.entry.entry_id] = lists[kind]
-        self.last_birthdays = lists["birthdays"]
-        return lists["birthdays"]
+        return {kind: upcoming(kind, entries, today)[:LIST_LIMIT] for kind, entries in raw.items()}
 
-    def _events(self, kind: str) -> list[dict]:
-        if kind == "birthdays":
-            return self.data or []
-        return self.hass.data.get(f"{DOMAIN}_{kind}", {}).get(self.entry.entry_id) or []
+    def events(self, kind: str) -> list[dict]:
+        """Upcoming events of a kind, soonest first."""
+        return (self.data or {}).get(kind, [])
 
     @callback
     def on_notification_update(self, update_type, notifications) -> None:
@@ -191,7 +183,7 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
                 strings[f"{prefix}.{kind}_message.message"].format(
                     name=event.get("person_name"), years=_years(event, date_key, origin_key)
                 )
-                for event in self._events(kind)
+                for event in self.events(kind)
                 if str(event.get(date_key, ""))[:10] == tomorrow
             ]
             if messages and notification_id(kind, tomorrow) not in self.dismissed:
