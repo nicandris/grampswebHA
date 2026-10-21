@@ -50,9 +50,8 @@
       },
       "reauth_confirm": {
         "title": "Ponovo se prijavite na Gramps Web",
-        "description": "Gramps Web ({url}) je odbio sačuvanu prijavu. Unesite trenutno korisničko ime i lozinku.",
+        "description": "Gramps Web ({url}) je odbio sačuvanu prijavu. Unesite trenutnu lozinku.",
         "data": {
-          "username": "Korisničko ime",
           "password": "Lozinka"
         }
       }

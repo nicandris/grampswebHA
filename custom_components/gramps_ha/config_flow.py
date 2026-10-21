@@ -193,7 +193,7 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_USERNAME, default=entry.data.get(CONF_USERNAME, vol.UNDEFINED)): cv.string,
+                    # password only: the username is part of the unique_id
                     vol.Required(CONF_PASSWORD): TextSelector(
                         TextSelectorConfig(type=TextSelectorType.PASSWORD)
                     ),

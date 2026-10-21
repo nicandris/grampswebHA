@@ -63,9 +63,8 @@
       },
       "reauth_confirm": {
         "title": "Log in to Gramps Web again",
-        "description": "Gramps Web at {url} rejected the stored login. Enter the current username and password.",
+        "description": "Gramps Web at {url} rejected the stored login. Enter the current password.",
         "data": {
-          "username": "Username",
           "password": "Password"
         }
       }
