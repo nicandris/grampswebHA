@@ -1,11 +1,12 @@
 """Outages and rejected logins reach HA instead of showing empty sensors."""
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.data_entry_flow import FlowResultType
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.gramps_ha.grampsweb_api import GrampsWebAuthError, GrampsWebError
 
@@ -79,3 +80,17 @@ async def test_failed_refresh_keeps_last_data(hass):
         await coordinator.async_refresh()
     assert coordinator.last_update_success is False
     assert coordinator.data["birthdays"][0]["person_name"] == "Ann"
+
+
+async def test_failed_refresh_retries_in_15_minutes(hass, freezer):
+    entry = MockConfigEntry(domain=DOMAIN, data=BASE, title="Gramps HA")
+    entry.add_to_hass(hass)
+    with patch(f"{API}.fetch", return_value=RAW):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    with patch(f"{API}.fetch", side_effect=GrampsWebError("down")):
+        await entry.runtime_data.async_refresh()
+    with patch(f"{API}.fetch", return_value=RAW) as fetch:
+        freezer.tick(timedelta(minutes=16))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert fetch.called

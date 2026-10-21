@@ -29,6 +29,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 # Entries kept per list (the all-birthdays attribute shows this many)
 LIST_LIMIT = 50
+RETRY_AFTER = 15 * 60  # seconds
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gramps HA from a config entry."""
@@ -110,7 +111,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         except GrampsWebAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except GrampsWebError as err:
-            raise UpdateFailed(f"Error communicating with Gramps Web: {err}") from err
+            # retry soon instead of after the (weekly) update interval
+            raise UpdateFailed(f"Error communicating with Gramps Web: {err}", retry_after=RETRY_AFTER) from err
         return raw
 
     def events(self, kind: str) -> list[dict]:
