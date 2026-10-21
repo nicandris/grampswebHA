@@ -1,12 +1,16 @@
 """Photos come from image entities behind HA's login, not from www/."""
-from unittest.mock import patch
+from datetime import timedelta
+from unittest.mock import PropertyMock, patch
 
+import pytest
 from homeassistant.components.image import async_get_image
 from homeassistant.exceptions import HomeAssistantError
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
-import pytest
 from custom_components.gramps_ha import _remove_downloaded_photos
 from custom_components.gramps_ha.grampsweb_api import GrampsWebError
 
@@ -86,3 +90,26 @@ async def test_failed_photo_is_logged_once_until_next_refresh(hass, enable_custo
         await entry.runtime_data.async_refresh()
     with patch(f"{API}.get_thumbnail", return_value=b"back"):
         assert (await async_get_image(hass, entity_id)).content == b"back"
+
+
+async def test_image_sensors_show_the_photo_entity(hass, enable_custom_integrations, freezer):
+    with patch("homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+               new_callable=PropertyMock, return_value=True):
+        await setup(hass)
+
+    def picture(entity_id):
+        return hass.states.get(entity_id).attributes.get("entity_picture")
+
+    photo = picture("image.birthdays_next_birthday_1_photo")
+    assert photo.startswith("/api/image_proxy/image.birthdays_next_birthday_1_photo?token=")
+    assert picture("sensor.birthdays_next_birthday_1_image") == photo
+    assert picture("sensor.anniversaries_next_anniversary_1_image_person_1") == picture(
+        "image.anniversaries_next_anniversary_1_photo_person_1"
+    )
+    assert picture("sensor.anniversaries_next_anniversary_1_image_person_2") is None  # no photo
+
+    freezer.tick(timedelta(minutes=6))  # the image proxy token rotates
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert picture("image.birthdays_next_birthday_1_photo") != photo
+    assert picture("sensor.birthdays_next_birthday_1_image") == picture("image.birthdays_next_birthday_1_photo")

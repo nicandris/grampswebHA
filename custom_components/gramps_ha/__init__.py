@@ -22,6 +22,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
+from .config_flow import _unique_id as config_unique_id
 from .const import (
     CONF_ENTITY_LANGUAGE,
     CONF_NOTIFY_EVENTS,
@@ -38,7 +39,6 @@ from .const import (
     ENTITY_LANGUAGE_HA,
     NOTIFY_UNTIL_OVER,
 )
-from .config_flow import _unique_id as config_unique_id
 from .grampsweb_api import (
     KINDS,
     GrampsWebAPI,
@@ -97,7 +97,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.async_add_executor_job(_remove_downloaded_photos, hass.config.path("www", "gramps"))
 
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # image first: the image sensors look up their photo entities
+    for platform in PLATFORMS:
+        await hass.config_entries.async_forward_entry_setups(entry, [platform])
 
     # Notifications run daily on the cached lists, not on each (weekly) fetch.
     # Dismissals are stored: HA forgets notifications on restart, and the

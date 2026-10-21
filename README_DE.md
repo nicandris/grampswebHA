@@ -87,7 +87,7 @@ Für jeden Platz (1 bis zur eingestellten Anzahl) wird ein Satz Sensoren angeleg
 3. **Datum** (`sensor.birthdays_next_birthday_X_date`) - Geburtsdatum (Datumtyp)
 4. **Nächstes Datum** (`sensor.birthdays_next_birthday_X_upcoming_date`) - Datum des nächsten Geburtstags (Datumtyp)
 5. **Tage verbleibend** (`sensor.birthdays_next_birthday_X_days_until`) - Tage bis zum Geburtstag, `0` am Tag selbst
-6. **Bild** (`sensor.birthdays_next_birthday_X_image`) - Gramps-Web-URL des Profilbilds (öffnen erfordert eine Gramps-Anmeldung)
+6. **Bild** (`sensor.birthdays_next_birthday_X_image`) - Gramps-Web-URL des Profilbilds (öffnen erfordert eine Gramps-Anmeldung); das Entitätsbild ist das Foto der passenden Bild-Entität
 7. **Link** (`sensor.birthdays_next_birthday_X_link`) - Link zur Person in Gramps Web
 
 `sensor.gramps_ha_all_upcoming_birthdays` zählt die anstehenden Geburtstage; das Attribut `birthdays` listet bis zu 50 davon.

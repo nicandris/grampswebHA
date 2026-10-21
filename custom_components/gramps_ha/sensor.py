@@ -13,10 +13,13 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import ATTR_ENTITY_PICTURE, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import Event as StateEvent
+from homeassistant.core import EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -161,6 +164,8 @@ class GrampsEventSensor(GrampsEntity, SensorEntity):
     """One field of the n-th upcoming event of a kind."""
 
     entity_description: GrampsSensorDescription
+    # the photo URL's token changes every few minutes: keep it out of the history
+    _unrecorded_attributes = frozenset({ATTR_ENTITY_PICTURE})
 
     def __init__(self, coordinator, entry: ConfigEntry, kind: str, index: int,
                  description: GrampsSensorDescription) -> None:
@@ -173,6 +178,38 @@ class GrampsEventSensor(GrampsEntity, SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_{prefix}_{index}_{description.key}"
         self._attr_name = coordinator.names[f"{prefix}_{description.name_key or description.key}"].format(n=index + 1)
         self._attr_device_info = kind_device(coordinator, entry, kind)
+        # image sensors show the photo of the matching image entity (image.py)
+        self._photo_unique_id = (
+            f"{entry.entry_id}_{prefix}_{index}_{description.key.replace('image', 'photo')}"
+            if description.key.startswith("image")
+            else None
+        )
+        self._photo_entity_id: str | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._photo_unique_id:
+            self._photo_entity_id = er.async_get(self.hass).async_get_entity_id(
+                "image", DOMAIN, self._photo_unique_id
+            )
+        if self._photo_entity_id:
+            # its URL carries an access token that changes every few minutes
+            self.async_on_remove(
+                async_track_state_change_event(self.hass, self._photo_entity_id, self._photo_changed)
+            )
+
+    @callback
+    def _photo_changed(self, _event: StateEvent[EventStateChangedData]) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def entity_picture(self) -> str | None:
+        if not self._photo_entity_id:
+            return None
+        photo = self.hass.states.get(self._photo_entity_id)
+        if photo is None or photo.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return None
+        return photo.attributes.get(ATTR_ENTITY_PICTURE)
 
     def _event(self) -> Event | None:
         events = self.coordinator.events(self._kind)
