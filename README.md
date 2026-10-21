@@ -12,17 +12,20 @@ And if you already have a family tree, you might as well display family birthday
 
 ## Features
 
-- 🎂 Displays the next 6 ( configurable ) birthdays
-- 📅 Automatically calculates days until the next birthday
+- 🎂 Displays the next 6 (configurable) birthdays
+- 📅 Days until each event, counted down daily (also between data fetches)
 - 🎉 Shows the person's age on their upcoming birthday
-- 🧩 7 sensors per birthday: Name, Age, Date, Upcoming Date, Days Remaining, Image, Link
-- 🖼️ Downloads profile pictures from Gramps Web (if available)
+- 🧩 7 sensors per birthday: Name, Age, Date, Upcoming Date, Days Until, Image, Link
+- 🖼️ Profile photos from Gramps Web as image entities, behind Home Assistant's login
 - 🔗 Direct links to persons and families in Gramps Web
-- 🔄 Automatic updates every 6 hours
-- 🔐 Supports authenticated and public Gramps Web instances
-- 🪦 **Optional: Displays upcoming 6 memorial dates/death anniversaries** (with image and link)
-- 💍 **Optional: Displays upcoming 6 wedding anniversaries** (with images of both partners and family link)
+- 🔄 Fetches new data once a week by default (configurable)
+- 🕯️ Birthdays of deceased people (can be turned off)
+- 🪦 **Optional:** upcoming memorial dates/death anniversaries
+- 💍 **Optional:** upcoming wedding anniversaries (with photos of both partners and a family link)
+- 🔔 Notifications the day before an event
 - 🌍 Multilingual: German, English, French, Italian, Bosnian
+
+Only exact dates are used: dates marked *about*, *before*, *after*, ranges and estimated or calculated dates are skipped. Birthdays on 29 February fall on 28 February in common years. People without a recorded death who would be over 110 count as deceased.
 
 ## Installation
 
@@ -59,76 +62,71 @@ rm -rf temp
 2. Click **+ Add Integration**
 3. Search for "Gramps HA"
 4. Enter the following information:
-   - **URL**: The URL of your Gramps Web instance (e.g., `https://my-gramps.example.com`)
-   - **Username**: (optional) Your Gramps Web username
-   - **Password**: (optional) Your Gramps Web password
-   - **Number of Birthdays**: (optional, default: 10) Number of birthdays/deathdays/anniversaries to display
-   - **Show Deathdays**: (optional, default: No) Show upcoming memorial/death dates
-   - **Show Anniversaries**: (optional, default: No) Show upcoming wedding anniversaries
+   - **URL**: The URL of your Gramps Web instance (e.g., `https://my-gramps.example.com`). Plain `http://` is only accepted for local addresses, because it sends the password unencrypted.
+   - **Username** and **Password** (required): a Gramps Web user. A read-only account with the Member role is enough. Setup checks the login.
+   - **Number of Birthdays**: (default: 6) Number of birthdays/deathdays/anniversaries that get their own sensors
+   - **Show birthdays of the deceased**: (default: Yes)
+   - **Show Deathdays**: (default: No) Show upcoming memorial/death dates
+   - **Show Anniversaries**: (default: No) Show upcoming wedding anniversaries
+   - **Update interval (hours)**: (default: 168, once a week) How often data is fetched from Gramps Web. A failed fetch is retried after 15 minutes.
    - **Entity names**: (default: English) English, or the language Home Assistant is set to. Changing it renames sensors and devices; entity IDs stay the same.
 
-To change these settings later, open the integration and choose **Reconfigure** from its ⋮ menu.
+To change these settings later, open the integration and choose **Reconfigure** from its ⋮ menu (leave the password empty to keep it). If Gramps Web rejects the stored login, Home Assistant asks you to log in again.
 
 ## Sensors
 
-The integration automatically creates 10 sensors per type (birthdays, deathdays, anniversaries), even if fewer data is available. Sensors without data show default values.
+For each slot (1 up to the configured number) a set of sensors is created, even if fewer events exist; sensors without data are `unknown`. Entity IDs below are for an English setup; `X` is the slot number.
 
 ### Next Birthdays
 
-For the next 10 birthdays, 7 sensors are created each:
+1. **Name** (`sensor.birthdays_next_birthday_X_name`) - Person's name; its attributes hold age, days until, dates and image URL
+2. **Age** (`sensor.birthdays_next_birthday_X_age`) - Age on next birthday
+3. **Date** (`sensor.birthdays_next_birthday_X_date`) - Birth date (Date type)
+4. **Upcoming Date** (`sensor.birthdays_next_birthday_X_upcoming_date`) - Date of next birthday (Date type)
+5. **Days Until** (`sensor.birthdays_next_birthday_X_days_until`) - Days until birthday, `0` on the day
+6. **Image** (`sensor.birthdays_next_birthday_X_image`) - Gramps Web URL of the profile picture (needs a Gramps login to open)
+7. **Link** (`sensor.birthdays_next_birthday_X_link`) - Link to the person in Gramps Web
 
-1. **Name** (`sensor.next_birthday_X_name`) - Person's name
-2. **Age** (`sensor.next_birthday_X_age`) - Age on next birthday
-3. **Date** (`sensor.next_birthday_X_date`) - Birth date (Date type)
-4. **Upcoming Date** (`sensor.next_birthday_X_upcoming_date`) - Date of next birthday (Date type)
-5. **Days Remaining** (`sensor.next_birthday_X_days_until`) - Days until birthday
-6. **Image** (`sensor.next_birthday_X_image`) - URL to profile picture (if available)
-7. **Link** (`sensor.next_birthday_X_link`) - Link to person in Gramps Web
+`sensor.gramps_ha_all_upcoming_birthdays` counts the upcoming birthdays; its `birthdays` attribute lists up to 50 of them.
 
-All sensors contain additional attributes with detailed information.
+### Birthdays of the deceased
 
-### Next Deathdays/Memorial Dates (optional)
-
-If the "Show Deathdays" option is enabled, four sensors are created for each of the next 6 memorial/death dates:
-
-- `sensor.next_deathday_1_name`, `sensor.next_deathday_1_date`, `sensor.next_deathday_1_years_ago`, `sensor.next_deathday_1_days_until`
-- `sensor.next_deathday_2_name`, `sensor.next_deathday_2_date`, `sensor.next_deathday_2_years_ago`, `sensor.next_deathday_2_days_until`
-- ... up to `sensor.next_deathday_6_*`
-
-These sensors display:
-- **name**: Name of the deceased person
-- **date**: Death date
-- **years_ago**: How many years have passed since death
-- **days_until**: Days until the annual memorial reminder
-
-### Next Wedding Anniversaries (optional)
+The same 7 sensors with the prefix `sensor.deceased_birthdays_next_deceased_birthday_X_`, for people with a recorded death (or over 110). Can be turned off in the settings.
 
 ### Next Deathdays/Memorial Dates (optional)
 
-If the "Show Deathdays" option is enabled, 7 sensors are created for each of the next 10 memorial/death dates:
+If "Show Deathdays" is enabled, 7 sensors per slot:
 
-1. **Name** (`sensor.next_deathday_X_name`) - Name of deceased person
-2. **Date** (`sensor.next_deathday_X_date`) - Death date (Date type)
-3. **Upcoming Date** (`sensor.next_deathday_X_upcoming_date`) - Date of next memorial (Date type)
-4. **Years Ago** (`sensor.next_deathday_X_years_ago`) - How many years since death
-5. **Days Remaining** (`sensor.next_deathday_X_days_until`) - Days until annual memorial
-6. **Image** (`sensor.next_deathday_X_image`) - URL to profile picture (if available)
-7. **Link** (`sensor.next_deathday_X_link`) - Link to person in Gramps Web
+1. **Name** (`sensor.deathdays_next_deathday_X_name`) - Name of deceased person
+2. **Date** (`sensor.deathdays_next_deathday_X_date`) - Death date (Date type)
+3. **Upcoming Date** (`sensor.deathdays_next_deathday_X_upcoming_date`) - Date of next memorial (Date type)
+4. **Years Ago** (`sensor.deathdays_next_deathday_X_years_ago`) - Years since the death, on that day
+5. **Days Until** (`sensor.deathdays_next_deathday_X_days_until`) - Days until annual memorial
+6. **Image** (`sensor.deathdays_next_deathday_X_image`) - Gramps Web URL of the profile picture
+7. **Link** (`sensor.deathdays_next_deathday_X_link`) - Link to the person in Gramps Web
 
 ### Next Wedding Anniversaries (optional)
 
-If the "Show Anniversaries" option is enabled, 8 sensors are created for each of the next 10 wedding anniversaries:
+If "Show Anniversaries" is enabled, 8 sensors per slot. Only *Marriage* events count; couples with a *Divorce* or *Annulment* event, or with a deceased partner, are left out.
 
-1. **Name** (`sensor.next_anniversary_X_name`) - Names of spouses
-2. **Years Together** (`sensor.next_anniversary_X_years_together`) - How many years married
-3. **Date** (`sensor.next_anniversary_X_date`) - Marriage date (Date type)
-4. **Upcoming Date** (`sensor.next_anniversary_X_upcoming_date`) - Date of next anniversary (Date type)
-5. **Days Remaining** (`sensor.next_anniversary_X_days_until`) - Days until next anniversary
-6. **Image Person 1** (`sensor.next_anniversary_X_image_person1`) - URL to profile picture of first spouse
-7. **Image Person 2** (`sensor.next_anniversary_X_image_person2`) - URL to profile picture of second spouse
-8. **Link** (`sensor.next_anniversary_X_link`) - Link to family in Gramps Web
+1. **Name** (`sensor.anniversaries_next_anniversary_X_name`) - Names of the spouses
+2. **Years Together** (`sensor.anniversaries_next_anniversary_X_years_together`) - Years married, on that day
+3. **Date** (`sensor.anniversaries_next_anniversary_X_date`) - Marriage date (Date type)
+4. **Upcoming Date** (`sensor.anniversaries_next_anniversary_X_upcoming_date`) - Date of next anniversary (Date type)
+5. **Days Until** (`sensor.anniversaries_next_anniversary_X_days_until`) - Days until next anniversary
+6. **Image Person 1** (`sensor.anniversaries_next_anniversary_X_image_person_1`) - Picture URL of the first named spouse
+7. **Image Person 2** (`sensor.anniversaries_next_anniversary_X_image_person_2`) - Picture URL of the second named spouse
+8. **Link** (`sensor.anniversaries_next_anniversary_X_link`) - Link to the family in Gramps Web
 
-**Important:** Image and Link sensors are disabled by default to avoid database bloat. You can manually enable them under "Settings → Devices & Services → Entities" if needed.
+### Photos
+
+Each slot also has an image entity with the person's photo, e.g. `image.birthdays_next_birthday_X_photo`, `image.deathdays_next_deathday_X_photo` and `image.anniversaries_next_anniversary_X_photo_person_1` / `_photo_person_2`. Use them in picture cards. Photos are loaded with the Gramps login and served through Home Assistant's login; they are no longer saved to `www/` (older versions did, and those files are deleted on setup).
+
+**Disabled by default (new installs):** the Image and Link sensors and `sensor.gramps_ha_all_upcoming_birthdays`. Enable them under "Settings → Devices & Services → Entities" if needed.
+
+### Privacy
+
+Every Home Assistant user can read entity states and notifications; Home Assistant has no per-user permissions for them. The sensors show names and dates of your family tree, so only add this integration where all users may see them. The `birthdays` attribute of the all-birthdays sensor is not written to the history database.
 
 ## Notifications
 
@@ -147,15 +145,15 @@ Example templates (Grid and Markdown) with the new separate sensors can be found
 
 ```yaml
 type: custom:button-card
-entity: sensor.next_birthday_1_name
+entity: sensor.birthdays_next_birthday_1_name
 name: |
   [[[
-    return states['sensor.next_birthday_1_name'].state;
+    return states['sensor.birthdays_next_birthday_1_name'].state;
   ]]]
 label: |
   [[[
-    const days = states['sensor.next_birthday_1_name'].attributes.days_until;
-    const age = states['sensor.next_birthday_1_name'].attributes.age;
+    const days = states['sensor.birthdays_next_birthday_1_name'].attributes.days_until;
+    const age = states['sensor.birthdays_next_birthday_1_name'].attributes.age;
     return `In ${days} days turns ${age} years old`;
   ]]]
 show_label: true
@@ -164,7 +162,7 @@ styles:
   card:
     - background: |
         [[[
-          const days = states['sensor.next_birthday_1_name'].attributes.days_until;
+          const days = states['sensor.birthdays_next_birthday_1_name'].attributes.days_until;
           if (days <= 7) return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
           return 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
         ]]]
@@ -214,7 +212,7 @@ This integration is under active development. Contributions are welcome!
 - [x] Direct links to persons/families in Gramps Web
 - [x] Multilingual support (DE, EN, FR, IT, BS)
 - [ ] Age group filtering
-- [ ] Notifications for upcoming birthdays
+- [x] Notifications for upcoming birthdays
 - [ ] Support for multiple Gramps Web instances
 
 ## License
