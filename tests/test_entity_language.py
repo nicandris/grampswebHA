@@ -1,24 +1,29 @@
 """Setup option for entity-name language + reconfigure, against real HA core."""
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import pytest
-import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 
 DOMAIN = "gramps_ha"
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
-BDAY = [{"person_name": "Ann", "birth_date": "1980-01-01", "next_birthday": "2099-01-01", "age": 47, "days_until": 80}]
+RAW = {"birthdays": [{"person_name": "Ann", "birth_date": "1980-01-01"}],
+       "deceased_birthdays": [], "deathdays": [], "anniversaries": []}
 BASE = {"url": "https://gramps.example", "username": "u", "password": "p",
         "num_birthdays": 1, "show_deathdays": False, "show_anniversaries": False, "scan_interval": 168}
 
 
 @pytest.fixture(autouse=True)
 def _env(enable_custom_integrations, tmp_path):
-    with patch(f"{API}.get_birthdays", return_value=BDAY), \
-         patch(f"{API}.get_deceased_birthdays", return_value=[]):
+    # every entity enabled, so all names can be checked
+    enabled = patch("homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+                    new_callable=PropertyMock, return_value=True)
+    with patch(f"{API}.fetch", return_value=RAW), patch(f"{API}.test_connection"), enabled:
         yield
 
 
@@ -63,7 +68,7 @@ async def test_ha_language_names_then_reconfigure_back(hass):
     assert result["type"] is FlowResultType.FORM and result["step_id"] == "reconfigure"
     # form is pre-filled from the entry
     defaults = {str(k): k.default() for k in result["data_schema"].schema if callable(getattr(k, "default", None))}
-    assert defaults["entity_language"] == "ha" and defaults["password"] == "p"
+    assert defaults["entity_language"] == "ha" and "password" not in defaults  # stored password not sent back
 
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "entity_language": "en"})
     assert result["type"] is FlowResultType.ABORT and result["reason"] == "reconfigure_successful"
@@ -95,5 +100,48 @@ async def test_every_language_resolves_all_names(hass, lang):
     hass.config.language = lang
     entry = await setup(hass, {**BASE, "entity_language": "ha", "show_deathdays": True, "show_anniversaries": True})
     n = names(hass, entry)
-    assert len(n) == 1 + 7 * 2 + 7 + 8  # all, birthday, deceased, deathday, anniversary
+    assert len(n) == 1 + 7 * 2 + 7 + 8 + 5  # all, birthday, deceased, deathday, anniversary sensors; 5 photos
     assert all(name and "{n}" not in name for _, name in n.values())
+
+
+async def test_reconfigure_without_password_keeps_it(hass):
+    entry = await setup(hass, BASE)
+    result = await entry.start_reconfigure_flow(hass)
+    data = {k: v for k, v in BASE.items() if k != "password"}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], data)
+    await hass.async_block_till_done()
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data["password"] == "p"
+
+
+@pytest.mark.parametrize(("url", "error"), [
+    ("http://gramps.example.com", {"url": "insecure_url"}),
+    ("http://192.168.1.5:5000", {}),
+    ("http://homeassistant.local:5000", {}),
+    ("http://gramps", {}),
+    ("http://gramps.fritz.box", {}),
+    ("http://gramps.home", {}),
+    ("http://gramps.localdomain", {}),
+    ("http://gramps.lan", {}),
+    ("http://gramps.internal", {}),
+    ("http://gramps.home.arpa", {}),
+    ("http://GRAMPS.LOCAL", {}),
+    ("http://100.101.102.103", {}),  # Tailscale (CGNAT)
+    ("http://nas.tail1234.ts.net:5000", {}),
+    ("http://100.128.0.1", {"url": "insecure_url"}),  # just outside 100.64.0.0/10
+    ("http://8.8.8.8", {"url": "insecure_url"}),
+    ("http://gramps.home.example.com", {"url": "insecure_url"}),
+    ("https://gramps.example.com", {}),
+])
+async def test_plain_http_only_on_the_local_network(hass, url, error):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "url": url})
+    assert result.get("errors", {}) == error
+
+
+async def test_existing_http_entry_on_a_lan_name_can_be_reconfigured(hass):
+    entry = await setup(hass, {**BASE, "url": "http://gramps.fritz.box:5000"})
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "url": "http://gramps.fritz.box:5000"})
+    await hass.async_block_till_done()
+    assert result["reason"] == "reconfigure_successful"

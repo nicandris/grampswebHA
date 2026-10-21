@@ -14,12 +14,21 @@
           "scan_interval": "Intervalle de mise à jour (heures)",
           "entity_language": "Noms des entités",
           "notify_events": "Notifier la veille",
-          "notify_mode": "Durée de la notification"
+          "notify_mode": "Durée de la notification",
+          "show_deceased_birthdays": "Afficher les anniversaires des défunts"
         },
         "data_description": {
           "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés.",
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
-          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée."
+          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée.",
+          "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées.",
+          "num_birthdays": "Nombre d'anniversaires à venir ayant leur propre jeu de capteurs.",
+          "scan_interval": "Fréquence de récupération des données depuis Gramps Web. Par défaut : 168 (une fois par semaine).",
+          "show_anniversaries": "Créer aussi des capteurs pour les prochains anniversaires de mariage.",
+          "show_deathdays": "Créer aussi des capteurs pour les prochains anniversaires de décès.",
+          "url": "URL de base de votre instance Gramps Web, par ex. {example_url}",
+          "username": "Un utilisateur Gramps Web. Un compte en lecture seule avec le rôle Member suffit.",
+          "password": "Mot de passe de cet utilisateur Gramps Web."
         }
       },
       "reconfigure": {
@@ -35,23 +44,42 @@
           "scan_interval": "Intervalle de mise à jour (heures)",
           "entity_language": "Noms des entités",
           "notify_events": "Notifier la veille",
-          "notify_mode": "Durée de la notification"
+          "notify_mode": "Durée de la notification",
+          "show_deceased_birthdays": "Afficher les anniversaires des défunts"
         },
         "data_description": {
           "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés.",
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
-          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée."
+          "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée.",
+          "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées.",
+          "password": "Laisser vide pour garder le mot de passe actuel.",
+          "num_birthdays": "Nombre d'anniversaires à venir ayant leur propre jeu de capteurs.",
+          "scan_interval": "Fréquence de récupération des données depuis Gramps Web. Par défaut : 168 (une fois par semaine).",
+          "show_anniversaries": "Créer aussi des capteurs pour les prochains anniversaires de mariage.",
+          "show_deathdays": "Créer aussi des capteurs pour les prochains anniversaires de décès.",
+          "url": "URL de base de votre instance Gramps Web, par ex. {example_url}",
+          "username": "Un utilisateur Gramps Web. Un compte en lecture seule avec le rôle Member suffit."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Se reconnecter à Gramps Web",
+        "description": "Gramps Web ({url}) a refusé les identifiants enregistrés. Saisissez le mot de passe actuel.",
+        "data": {
+          "password": "Mot de passe"
         }
       }
     },
     "error": {
       "cannot_connect": "Échec de la connexion",
       "invalid_url": "URL invalide",
-      "unknown": "Une erreur inconnue s'est produite"
+      "unknown": "Une erreur inconnue s'est produite",
+      "invalid_auth": "Gramps Web a refusé le nom d'utilisateur ou le mot de passe",
+      "insecure_url": "Utilisez https:// ou une adresse locale : http envoie le mot de passe en clair"
     },
     "abort": {
       "already_configured": "Cette instance Gramps Web est déjà configurée",
-      "reconfigure_successful": "Reconfiguration réussie"
+      "reconfigure_successful": "Reconfiguration réussie",
+      "reauth_successful": "Réauthentification réussie"
     }
   },
   "exceptions": {
@@ -193,6 +221,23 @@
       },
       "all_birthdays": {
         "name": "Tous les anniversaires à venir"
+      }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Prochain anniversaire {n} Photo"
+      },
+      "deceased_birthday_photo": {
+        "name": "Prochain anniversaire défunt {n} Photo"
+      },
+      "deathday_photo": {
+        "name": "Prochain jour de décès {n} Photo"
+      },
+      "anniversary_photo_person1": {
+        "name": "Prochain anniversaire de mariage {n} Photo personne 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Prochain anniversaire de mariage {n} Photo personne 2"
       }
     }
   },

@@ -14,7 +14,8 @@
           "scan_interval": "Aktualisierungsintervall (Stunden)",
           "entity_language": "Entitätsnamen",
           "notify_events": "Benachrichtigung am Vortag",
-          "notify_mode": "Dauer der Benachrichtigung"
+          "notify_mode": "Dauer der Benachrichtigung",
+          "show_deceased_birthdays": "Geburtstage Verstorbener anzeigen"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
@@ -26,7 +27,8 @@
           "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
           "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich.",
           "notify_events": "Für welche Ereignisse am Vortag benachrichtigt wird. Leer lassen, um Benachrichtigungen auszuschalten.",
-          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen."
+          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen.",
+          "show_deceased_birthdays": "Auch Sensoren für die Geburtstage verstorbener Personen erstellen."
         }
       },
       "reconfigure": {
@@ -42,30 +44,42 @@
           "scan_interval": "Aktualisierungsintervall (Stunden)",
           "entity_language": "Entitätsnamen",
           "notify_events": "Benachrichtigung am Vortag",
-          "notify_mode": "Dauer der Benachrichtigung"
+          "notify_mode": "Dauer der Benachrichtigung",
+          "show_deceased_birthdays": "Geburtstage Verstorbener anzeigen"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
           "username": "Ein Gramps Web Benutzer. Ein Konto mit der Rolle Mitglied (nur lesen) genügt.",
-          "password": "Passwort dieses Gramps Web Benutzers.",
+          "password": "Leer lassen, um das aktuelle Passwort zu behalten.",
           "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
           "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
           "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
           "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
           "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich.",
           "notify_events": "Für welche Ereignisse am Vortag benachrichtigt wird. Leer lassen, um Benachrichtigungen auszuschalten.",
-          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen."
+          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen.",
+          "show_deceased_birthdays": "Auch Sensoren für die Geburtstage verstorbener Personen erstellen."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Erneut bei Gramps Web anmelden",
+        "description": "Gramps Web unter {url} hat die gespeicherte Anmeldung abgelehnt. Gib das aktuelle Passwort ein.",
+        "data": {
+          "password": "Passwort"
         }
       }
     },
     "error": {
       "cannot_connect": "Verbindung fehlgeschlagen",
       "invalid_url": "Ungültige URL",
-      "unknown": "Ein unbekannter Fehler ist aufgetreten"
+      "unknown": "Ein unbekannter Fehler ist aufgetreten",
+      "invalid_auth": "Gramps Web hat Benutzername oder Passwort abgelehnt",
+      "insecure_url": "Verwende https:// oder eine lokale Adresse: http sendet das Passwort unverschlüsselt"
     },
     "abort": {
       "already_configured": "Diese Gramps Web Instanz ist bereits konfiguriert",
-      "reconfigure_successful": "Neukonfiguration erfolgreich"
+      "reconfigure_successful": "Neukonfiguration erfolgreich",
+      "reauth_successful": "Erneute Anmeldung erfolgreich"
     }
   },
   "exceptions": {
@@ -207,6 +221,23 @@
       },
       "all_birthdays": {
         "name": "Alle kommenden Geburtstage"
+      }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Nächster Geburtstag {n} Foto"
+      },
+      "deceased_birthday_photo": {
+        "name": "Nächster Geburtstag Verstorbener {n} Foto"
+      },
+      "deathday_photo": {
+        "name": "Nächster Todestag {n} Foto"
+      },
+      "anniversary_photo_person1": {
+        "name": "Nächster Hochzeitstag {n} Foto Person 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Nächster Hochzeitstag {n} Foto Person 2"
       }
     }
   },

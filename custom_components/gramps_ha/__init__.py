@@ -1,126 +1,130 @@
 """The Gramps HA integration."""
 
 import logging
-from datetime import timedelta, datetime, date
-from pathlib import Path
+import os
+import re
+from datetime import timedelta
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.event import async_track_time_change
-from homeassistant.helpers.storage import Store
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.device_registry import (
+    DeviceEntryType,
+)
 from homeassistant.helpers.device_registry import (
     async_get as async_get_device_registry,
-    DeviceEntryType,
-    DeviceInfo,
 )
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.components import persistent_notification
+from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER
+from .config_flow import _unique_id as config_unique_id
+from .const import (
+    CONF_ENTITY_LANGUAGE,
+    CONF_NOTIFY_EVENTS,
+    CONF_NOTIFY_MODE,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_URL,
+    CONF_USERNAME,
+    DEFAULT_ENTITY_LANGUAGE,
+    DEFAULT_NOTIFY_EVENTS,
+    DEFAULT_NOTIFY_MODE,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    ENTITY_LANGUAGE_HA,
+    NOTIFY_UNTIL_OVER,
+)
+from .grampsweb_api import (
+    KINDS,
+    GrampsWebAPI,
+    GrampsWebAuthError,
+    GrampsWebError,
+    upcoming,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.IMAGE, Platform.SENSOR]
 
-SCAN_INTERVAL = timedelta(hours=6)
-
-# Notifiable event lists: kind -> (event date key, original date key) in each entry
-NOTIFY_KEYS = {
-    "birthdays": ("next_birthday", "birth_date"),
-    "deceased_birthdays": ("next_birthday", "birth_date"),
-    "deathdays": ("next_deathday", "death_date"),
-    "anniversaries": ("next_anniversary", "marriage_date"),
-}
-
-
-def _years(event: dict, date_key: str, origin_key: str) -> int | str:
-    """Years reached on the event day, from the dates themselves.
-
-    The lists' own age/years fields are computed on the fetch day, so they
-    are one short when a fetch before New Year serves an event after it.
-    """
-    try:
-        return int(str(event[date_key])[:4]) - int(str(event[origin_key])[:4])
-    except (KeyError, TypeError, ValueError):
-        return "?"
-
+# Entries kept per list (the all-birthdays attribute shows this many)
+LIST_LIMIT = 50
+RETRY_AFTER = 15 * 60  # seconds
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gramps HA from a config entry."""
-    _LOGGER.info("Setting up Gramps HA integration")
+    if entry.unique_id is None:  # entries created before 2026.10.4
+        unique_id = config_unique_id(entry.data)
+        if not any(other.unique_id == unique_id for other in hass.config_entries.async_entries(DOMAIN)):
+            hass.config_entries.async_update_entry(entry, unique_id=unique_id)
 
-    try:
-        from .grampsweb_api import GrampsWebAPI
+    url = entry.data.get(CONF_URL)
+    api = GrampsWebAPI(url=url, username=entry.data.get(CONF_USERNAME), password=entry.data.get(CONF_PASSWORD))
+    coordinator = GrampsWebCoordinator(
+        hass, api, entry, scan_interval_hours=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    )
+    # Raises ConfigEntryNotReady (HA retries) or ConfigEntryAuthFailed (reauth)
+    await coordinator.async_config_entry_first_refresh()
 
-        hass.data.setdefault(DOMAIN, {})
+    device = async_get_device_registry(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=entry.title or "Gramps Web",
+        manufacturer="Gramps Web",
+        model="Birthday Tracker",
+        entry_type=DeviceEntryType.SERVICE,
+        configuration_url=url,
+    )
+    coordinator.device_id = device.id  # parent of the per-category devices
+    entry.runtime_data = coordinator
 
-        url = entry.data.get(CONF_URL)
-        username = entry.data.get(CONF_USERNAME)
-        password = entry.data.get(CONF_PASSWORD)
+    # Entity and device names: English, or HA's language when chosen in setup.
+    language = (
+        hass.config.language
+        if entry.data.get(CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE) == ENTITY_LANGUAGE_HA
+        else "en"
+    )
+    coordinator.names = {}
+    for category in ("entity", "device"):
+        strings = await async_get_translations(hass, language, category, {DOMAIN})
+        for key, value in strings.items():
+            # component.gramps_ha.entity.<platform>.<key>.name / component.gramps_ha.device.<key>.name
+            coordinator.names[key.split(".")[-2]] = value
 
-        _LOGGER.debug("Gramps Web URL: %s", url)
-        _LOGGER.debug("Username provided: %s", bool(username))
+    await hass.async_add_executor_job(_remove_downloaded_photos, hass.config.path("www", "gramps"))
 
-        # Register device in device registry
-        device_registry = async_get_device_registry(hass)
-        device = device_registry.async_get_or_create(
-            config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title or "Gramps Web",
-            manufacturer="Gramps Web",
-            model="Birthday Tracker",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=url,
-        )
-        _LOGGER.debug("Device registered: %s", device.name)
+    # image first: the image sensors look up their photo entities
+    for platform in PLATFORMS:
+        await hass.config_entries.async_forward_entry_setups(entry, [platform])
 
-        api = GrampsWebAPI(
-            url=url,
-            username=username,
-            password=password,
-            hass_config_path=hass.config.config_dir,
-        )
+    # Notifications run daily on the cached lists, not on each (weekly) fetch.
+    # Dismissals are stored: HA forgets notifications on restart, and the
+    # startup check would otherwise bring a dismissed one back.
+    coordinator.dismissed_store = _dismissed_store(hass, entry)
+    coordinator.dismissed = set(await coordinator.dismissed_store.async_load() or [])
+    entry.async_on_unload(
+        persistent_notification.async_register_callback(hass, coordinator.on_notification_update)
+    )
+    await coordinator.async_notify()
+    entry.async_on_unload(
+        async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
+    )
+    return True
 
-        # Get scan interval from config (in hours), default to DEFAULT_SCAN_INTERVAL
-        scan_interval_hours = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        
-        coordinator = GrampsWebCoordinator(hass, api, entry, scan_interval_hours=scan_interval_hours)
 
-        # Try initial refresh, but don't fail if it doesn't work
-        try:
-            await coordinator.async_config_entry_first_refresh()
-            _LOGGER.info("Initial data fetch successful")
-        except Exception as refresh_err:
-            _LOGGER.warning("Initial data fetch failed (will retry): %s", refresh_err)
-            # Don't fail setup, just log the warning
-
-        coordinator.device_id = device.id  # parent of the per-category devices
-        hass.data[DOMAIN][entry.entry_id] = coordinator
-
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-        # Notifications run daily on the cached lists, not on each (weekly) fetch.
-        # Dismissals are stored: HA forgets notifications on restart, and the
-        # startup check would otherwise bring a dismissed one back.
-        coordinator.dismissed_store = _dismissed_store(hass, entry)
-        coordinator.dismissed = set(await coordinator.dismissed_store.async_load() or [])
-        entry.async_on_unload(
-            persistent_notification.async_register_callback(hass, coordinator.on_notification_update)
-        )
-        await coordinator.async_notify()
-        entry.async_on_unload(
-            async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
-        )
-
-        _LOGGER.info("Gramps HA setup completed successfully")
-        return True
-
-    except Exception as err:
-        _LOGGER.error("Failed to setup Gramps HA: %s", err, exc_info=True)
-        return False
+def _remove_downloaded_photos(folder: str) -> None:
+    """Delete photos that older versions saved in www/, which /local/ serves without login."""
+    if not os.path.isdir(folder):
+        return
+    for name in os.listdir(folder):
+        if re.fullmatch(r"[0-9a-f]{32}\.jpg", name):
+            os.remove(os.path.join(folder, name))
+    if not os.listdir(folder):
+        os.rmdir(folder)
 
 
 def _dismissed_store(hass: HomeAssistant, entry: ConfigEntry) -> Store:
@@ -134,22 +138,13 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    try:
-        if unload_ok := await hass.config_entries.async_unload_platforms(
-            entry, PLATFORMS
-        ):
-            hass.data[DOMAIN].pop(entry.entry_id)
-
-        return unload_ok
-    except Exception as err:
-        _LOGGER.error("Failed to unload Gramps HA: %s", err)
-        return False
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 class GrampsWebCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Gramps Web data."""
 
-    def __init__(self, hass: HomeAssistant, api, entry: ConfigEntry, scan_interval_hours: int = None) -> None:
+    def __init__(self, hass: HomeAssistant, api, entry: ConfigEntry, scan_interval_hours: int | None = None) -> None:
         """Initialize."""
         if scan_interval_hours is None:
             scan_interval_hours = DEFAULT_SCAN_INTERVAL
@@ -162,65 +157,34 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.entry = entry
-        self.last_birthdays = []  # Track previous list for comparison
+        self._view_data = None
+        self._view_day = None
+        self._view: dict[str, list[dict]] = {}
 
     async def _async_update_data(self):
         """Fetch data from API."""
+        today = dt_util.now().date()
         try:
-            _LOGGER.debug("Fetching birthday data from Gramps Web")
-            data = await self.hass.async_add_executor_job(self.api.get_birthdays)
-            _LOGGER.debug("Fetched %s birthdays", len(data) if data else 0)
-            
-            # Fetch birthdays for people who have passed away.
-            deceased_birthdays = await self.hass.async_add_executor_job(
-                self.api.get_deceased_birthdays
-            )
-            self.hass.data.setdefault(f"{DOMAIN}_deceased_birthdays", {})[
-                self.entry.entry_id
-            ] = deceased_birthdays or []
-            _LOGGER.debug(
-                "Deceased birthdays fetched: %s entries%s",
-                len(deceased_birthdays) if deceased_birthdays else 0,
-                f" | first: {deceased_birthdays[0]}" if deceased_birthdays else "",
-            )
-            
-            # Fetch deathdays if enabled
-            notify_events = self.entry.data.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)
-            if self.entry.data.get("show_deathdays", False) or "deathdays" in notify_events:
-                deathdays = await self.hass.async_add_executor_job(self.api.get_deathdays)
-                self.hass.data.setdefault(f"{DOMAIN}_deathdays", {})[self.entry.entry_id] = deathdays or []
-                _LOGGER.debug(
-                    "Deathdays fetched: %s entries%s",
-                    len(deathdays) if deathdays else 0,
-                    f" | first: {deathdays[0]}" if deathdays else "",
-                )
-            else:
-                _LOGGER.debug("Deathdays disabled in config; skipping fetch")
-            
-            # Fetch anniversaries if enabled
-            if self.entry.data.get("show_anniversaries", False) or "anniversaries" in notify_events:
-                anniversaries = await self.hass.async_add_executor_job(self.api.get_anniversaries)
-                self.hass.data.setdefault(f"{DOMAIN}_anniversaries", {})[self.entry.entry_id] = anniversaries or []
-                _LOGGER.debug(
-                    "Anniversaries fetched: %s entries%s",
-                    len(anniversaries) if anniversaries else 0,
-                    f" | first: {anniversaries[0]}" if anniversaries else "",
-                )
-            else:
-                _LOGGER.debug("Anniversaries disabled in config; skipping fetch")
-            
-            # Store current list for next comparison
-            self.last_birthdays = data or []
-            
-            return data
-        except Exception as err:
-            _LOGGER.error("Error fetching data: %s", err, exc_info=True)
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
+            raw = await self.hass.async_add_executor_job(self.api.fetch, today)
+        except GrampsWebAuthError as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except GrampsWebError as err:
+            # retry soon instead of after the (weekly) update interval
+            raise UpdateFailed(f"Error communicating with Gramps Web: {err}", retry_after=RETRY_AFTER) from err
+        return raw
 
-    def _events(self, kind: str) -> list[dict]:
-        if kind == "birthdays":
-            return self.data or []
-        return self.hass.data.get(f"{DOMAIN}_{kind}", {}).get(self.entry.entry_id) or []
+    def events(self, kind: str) -> list[dict]:
+        """Upcoming events of a kind as of today, soonest first.
+
+        Computed from the fetched dates per day, so days until and order stay
+        right between (weekly) fetches.
+        """
+        today = dt_util.now().date()
+        if self._view_data is not self.data or self._view_day != today:
+            self._view_data, self._view_day, self._view = self.data, today, {}
+        if kind not in self._view:
+            self._view[kind] = upcoming(kind, (self.data or {}).get(kind, []), today)[:LIST_LIMIT]
+        return self._view[kind]
 
     @callback
     def on_notification_update(self, update_type, notifications) -> None:
@@ -233,12 +197,14 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             self.dismissed_store.async_delay_save(lambda: sorted(self.dismissed), 1)
 
     async def async_notify(self, now=None) -> None:
-        """Notify about tomorrow's events and remove finished notifications.
+        """Refresh the entities for the new day, notify about tomorrow's events
+        and remove finished notifications.
 
         Runs at setup and daily just after midnight, on the cached lists:
         they hold absolute dates, so they stay valid between fetches.
         One notification per kind and day, so its id is known in advance.
         """
+        self.async_update_listeners()
         kinds = self.entry.data.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)
         today = dt_util.now().date()
         tomorrow = (today + timedelta(days=1)).isoformat()
@@ -248,7 +214,7 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
 
         if self.entry.data.get(CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE) == NOTIFY_UNTIL_OVER:
             yesterday = (today - timedelta(days=1)).isoformat()
-            for kind in NOTIFY_KEYS:
+            for kind in KINDS:
                 persistent_notification.async_dismiss(self.hass, notification_id(kind, yesterday))
 
         # Forget dismissals of events that are over (ids end in the event date).
@@ -264,12 +230,12 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         prefix = f"component.{DOMAIN}.exceptions"
 
         for kind in kinds:
-            date_key, origin_key = NOTIFY_KEYS[kind]
+            _, date_key, years_key = KINDS[kind]
             messages = [
                 strings[f"{prefix}.{kind}_message.message"].format(
-                    name=event.get("person_name"), years=_years(event, date_key, origin_key)
+                    name=event.get("person_name"), years=event.get(years_key)
                 )
-                for event in self._events(kind)
+                for event in self.events(kind)
                 if str(event.get(date_key, ""))[:10] == tomorrow
             ]
             if messages and notification_id(kind, tomorrow) not in self.dismissed:

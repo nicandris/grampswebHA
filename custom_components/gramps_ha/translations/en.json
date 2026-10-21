@@ -14,7 +14,8 @@
           "scan_interval": "Update interval (hours)",
           "entity_language": "Entity names",
           "notify_events": "Notify the day before",
-          "notify_mode": "Notification lifetime"
+          "notify_mode": "Notification lifetime",
+          "show_deceased_birthdays": "Show birthdays of the deceased"
         },
         "data_description": {
           "url": "Base URL of your Gramps Web instance, e.g. {example_url}",
@@ -26,7 +27,8 @@
           "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week).",
           "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same.",
           "notify_events": "Which events get a notification the day before. Leave empty to turn notifications off.",
-          "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over."
+          "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over.",
+          "show_deceased_birthdays": "Also create sensors for the birthdays of people who have died."
         }
       },
       "reconfigure": {
@@ -42,30 +44,42 @@
           "scan_interval": "Update interval (hours)",
           "entity_language": "Entity names",
           "notify_events": "Notify the day before",
-          "notify_mode": "Notification lifetime"
+          "notify_mode": "Notification lifetime",
+          "show_deceased_birthdays": "Show birthdays of the deceased"
         },
         "data_description": {
           "url": "Base URL of your Gramps Web instance, e.g. {example_url}",
           "username": "A Gramps Web user. A read-only account with the Member role is enough.",
-          "password": "Password of that Gramps Web user.",
+          "password": "Leave empty to keep the current password.",
           "num_birthdays": "How many upcoming birthdays get their own set of sensors.",
           "show_deathdays": "Also create sensors for upcoming death anniversaries.",
           "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
           "scan_interval": "How often to fetch new data from Gramps Web. Default: 168 (once a week).",
           "entity_language": "Language of the sensor and device names. Changing it renames them; entity IDs stay the same.",
           "notify_events": "Which events get a notification the day before. Leave empty to turn notifications off.",
-          "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over."
+          "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over.",
+          "show_deceased_birthdays": "Also create sensors for the birthdays of people who have died."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Log in to Gramps Web again",
+        "description": "Gramps Web at {url} rejected the stored login. Enter the current password.",
+        "data": {
+          "password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Connection failed",
       "invalid_url": "Invalid URL",
-      "unknown": "An unknown error occurred"
+      "unknown": "An unknown error occurred",
+      "invalid_auth": "Gramps Web rejected the username or password",
+      "insecure_url": "Use https://, or a local address: plain http sends the password unencrypted"
     },
     "abort": {
       "already_configured": "This Gramps Web instance is already configured",
-      "reconfigure_successful": "Re-configuration was successful"
+      "reconfigure_successful": "Re-configuration was successful",
+      "reauth_successful": "Re-authentication was successful"
     }
   },
   "exceptions": {
@@ -207,6 +221,23 @@
       },
       "all_birthdays": {
         "name": "All Upcoming Birthdays"
+      }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Next Birthday {n} Photo"
+      },
+      "deceased_birthday_photo": {
+        "name": "Next Deceased Birthday {n} Photo"
+      },
+      "deathday_photo": {
+        "name": "Next Deathday {n} Photo"
+      },
+      "anniversary_photo_person1": {
+        "name": "Next Anniversary {n} Photo Person 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Next Anniversary {n} Photo Person 2"
       }
     }
   },

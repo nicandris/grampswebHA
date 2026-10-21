@@ -2,36 +2,108 @@
 
 from __future__ import annotations
 
-import logging
-from datetime import datetime, date
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import date
+from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import ATTR_ENTITY_PICTURE, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import Event as StateEvent
+from homeassistant.core import EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.device_registry import DeviceInfo, DeviceEntryType
-from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
-    ATTR_PERSON_NAME,
-    ATTR_BIRTH_DATE,
-    ATTR_AGE,
-    ATTR_DAYS_UNTIL,
-    CONF_URL,
     CONF_NUM_BIRTHDAYS,
-    DEFAULT_NUM_BIRTHDAYS,
-    CONF_SHOW_DEATHDAYS,
     CONF_SHOW_ANNIVERSARIES,
-    DEFAULT_SHOW_DEATHDAYS,
+    CONF_SHOW_DEATHDAYS,
+    CONF_SHOW_DECEASED_BIRTHDAYS,
+    CONF_URL,
+    DEFAULT_NUM_BIRTHDAYS,
     DEFAULT_SHOW_ANNIVERSARIES,
-    CONF_ENTITY_LANGUAGE,
-    DEFAULT_ENTITY_LANGUAGE,
-    ENTITY_LANGUAGE_HA,
+    DEFAULT_SHOW_DEATHDAYS,
+    DEFAULT_SHOW_DECEASED_BIRTHDAYS,
+    DOMAIN,
 )
 
-_LOGGER = logging.getLogger(__name__)
+Event = dict[str, Any]
+
+
+@dataclass(frozen=True, kw_only=True)
+class GrampsSensorDescription(SensorEntityDescription):
+    """One field of an event slot; key is the unique_id suffix."""
+
+    value_fn: Callable[[Event, str], Any]
+    name_key: str | None = None  # translation key suffix, when it differs from key
+
+
+def _date(key: str) -> Callable[[Event, str], date | None]:
+    return lambda event, _: date.fromisoformat(event[key]) if event.get(key) else None
+
+
+def _field(key: str) -> Callable[[Event, str], Any]:
+    return lambda event, _: event.get(key)
+
+
+def _link(path: str, key: str) -> Callable[[Event, str], str | None]:
+    return lambda event, url: f"{url}/{path}/{event[key]}" if event.get(key) else None
+
+
+def _fields(origin: str, upcoming: str, years: str, years_icon: str, years_unit: str | None,
+            name_icon: str, upcoming_icon: str, images: tuple, link: tuple) -> tuple:
+    """The sensors of one event slot."""
+    return (
+        GrampsSensorDescription(key="name", icon=name_icon, value_fn=_field("person_name")),
+        GrampsSensorDescription(key=years, icon=years_icon, native_unit_of_measurement=years_unit,
+                                value_fn=_field(years)),
+        GrampsSensorDescription(key="date", icon="mdi:calendar", device_class=SensorDeviceClass.DATE,
+                                value_fn=_date(origin)),
+        GrampsSensorDescription(key="upcoming_date", icon=upcoming_icon, device_class=SensorDeviceClass.DATE,
+                                value_fn=_date(upcoming)),
+        GrampsSensorDescription(key="days_until", icon="mdi:calendar-clock", native_unit_of_measurement="days",
+                                value_fn=_field("days_until")),
+        *(
+            GrampsSensorDescription(key=key, name_key=name_key, icon="mdi:image-outline",
+                                    entity_registry_enabled_default=False, value_fn=_field(image_key))
+            for key, name_key, image_key in images
+        ),
+        GrampsSensorDescription(key="link", icon="mdi:link", entity_registry_enabled_default=False,
+                                value_fn=_link(*link)),
+    )
+
+
+_BIRTHDAY = _fields("birth_date", "next_birthday", "age", "mdi:numeric", None, "mdi:account", "mdi:cake",
+                    (("image", None, "image_url"),), ("person", "person_handle"))
+
+# kind -> (unique_id/translation prefix, device model, enabling option, fields)
+KINDS: dict[str, tuple[str, str, tuple[str, bool] | None, tuple]] = {
+    "birthdays": ("birthday", "Birthdays", None, _BIRTHDAY),
+    "deceased_birthdays": (
+        "deceased_birthday", "Deceased Birthdays", (CONF_SHOW_DECEASED_BIRTHDAYS, DEFAULT_SHOW_DECEASED_BIRTHDAYS), _BIRTHDAY,
+    ),
+    "deathdays": (
+        "deathday", "Deathdays", (CONF_SHOW_DEATHDAYS, DEFAULT_SHOW_DEATHDAYS),
+        _fields("death_date", "next_deathday", "years_ago", "mdi:history", None, "mdi:skull", "mdi:skull",
+                (("image", None, "image_url"),), ("person", "person_handle")),
+    ),
+    "anniversaries": (
+        "anniversary", "Anniversaries", (CONF_SHOW_ANNIVERSARIES, DEFAULT_SHOW_ANNIVERSARIES),
+        _fields("marriage_date", "next_anniversary", "years_together", "mdi:numeric", "years",
+                "mdi:heart-multiple", "mdi:heart",
+                (("image_person1", "image_person_1", "image_url_person1"),
+                 ("image_person2", "image_person_2", "image_url_person2")),
+                ("family", "family_handle")),
+    ),
+}
 
 
 async def async_setup_entry(
@@ -40,1071 +112,154 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Gramps Web sensors from a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
-    # Entity and device names: English, or HA's language when chosen in setup.
-    language = (
-        hass.config.language
-        if entry.data.get(CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE) == ENTITY_LANGUAGE_HA
-        else "en"
-    )
-    coordinator.names = {}
-    for category in ("entity", "device"):
-        strings = await async_get_translations(hass, language, category, {DOMAIN})
-        for key, value in strings.items():
-            # component.gramps_ha.entity.sensor.<key>.name / component.gramps_ha.device.<key>.name
-            coordinator.names[key.split(".")[-2]] = value
-    
-    # Get configuration
-    num_birthdays = entry.data.get(CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS)
-    show_deathdays = entry.data.get(CONF_SHOW_DEATHDAYS, DEFAULT_SHOW_DEATHDAYS)
-    show_anniversaries = entry.data.get(CONF_SHOW_ANNIVERSARIES, DEFAULT_SHOW_ANNIVERSARIES)
-
-    sensors: list[SensorEntity] = []
-    
-    # Birthday sensors - create as many as configured
-    # even if there aren't enough birthdays. Sensors ohne Daten zeigen Defaultwerte.
-    for i in range(num_birthdays):
-        sensors.append(GrampsWebNextBirthdayNameSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextBirthdayAgeSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextBirthdayDateSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextBirthdayUpcomingDateSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextBirthdayDaysUntilSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextBirthdayImageSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextBirthdayLinkSensor(coordinator, entry, i))
-
-    # Birthdays of deceased people - same fields as regular birthday sensors,
-    # but the data source contains only people with a recorded death event.
-    for i in range(num_birthdays):
-        sensors.append(GrampsWebNextDeceasedBirthdayNameSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextDeceasedBirthdayAgeSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextDeceasedBirthdayDateSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextDeceasedBirthdayUpcomingDateSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextDeceasedBirthdayDaysUntilSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextDeceasedBirthdayImageSensor(coordinator, entry, i))
-        sensors.append(GrampsWebNextDeceasedBirthdayLinkSensor(coordinator, entry, i))
-
-    # Deathday sensors (if enabled) - create as many as configured
-    if show_deathdays:
-        for i in range(num_birthdays):
-            sensors.append(GrampsWebNextDeathdayNameSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextDeathdayDateSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextDeathdayUpcomingDateSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextDeathdayYearsAgoSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextDeathdayDaysUntilSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextDeathdayImageSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextDeathdayLinkSensor(coordinator, entry, i))
-
-    # Anniversary sensors (if enabled) - create as many as configured
-    if show_anniversaries:
-        for i in range(num_birthdays):
-            sensors.append(GrampsWebNextAnniversaryNameSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryYearsTogetherSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryDateSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryUpcomingDateSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryDaysUntilSensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryImagePerson1Sensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryImagePerson2Sensor(coordinator, entry, i))
-            sensors.append(GrampsWebNextAnniversaryLinkSensor(coordinator, entry, i))
-
+    num = entry.data.get(CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS)
+    sensors: list[SensorEntity] = [
+        GrampsEventSensor(coordinator, entry, kind, index, description)
+        for kind, (_, _, option, fields) in KINDS.items()
+        if option is None or entry.data.get(*option)
+        for index in range(num)
+        for description in fields
+    ]
     sensors.append(GrampsWebAllBirthdaysSensor(coordinator, entry))
-
+    remove_stale_entities(hass, entry, "sensor", sensors)
     async_add_entities(sensors)
 
 
-class GrampsWebNextBirthdayBase(CoordinatorEntity, SensorEntity):
-    """Base class shared by the per-field next birthday sensors."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator)
-        self._index = index
-        self._entry = entry
-
-    def _get_birthday(self) -> dict | None:
-        if not self.coordinator.data:
-            return None
-        if self._index >= len(self.coordinator.data):
-            return None
-        return self.coordinator.data[self._index]
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        config_url = self._entry.data.get(CONF_URL)
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._entry.entry_id}_birthdays")},
-            name=self.coordinator.names["birthdays"],
-            manufacturer="Gramps Web",
-            model="Birthdays",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=config_url,
-            via_device_id=self.coordinator.device_id,
-        )
-
-    @property
-    def extra_state_attributes(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return {}
-        return {
-            ATTR_PERSON_NAME: birthday.get("person_name"),
-            ATTR_BIRTH_DATE: birthday.get("birth_date"),
-            ATTR_AGE: birthday.get("age"),
-            ATTR_DAYS_UNTIL: birthday.get("days_until"),
-            "next_birthday": birthday.get("next_birthday"),
-            "image_url": birthday.get("image_url"),
-        }
+def remove_stale_entities(hass: HomeAssistant, entry: ConfigEntry, domain: str, entities: list) -> None:
+    """Drop registry entries of slots or kinds that the settings no longer create."""
+    registry = er.async_get(hass)
+    current = {entity.unique_id for entity in entities}
+    for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if registry_entry.domain == domain and registry_entry.unique_id not in current:
+            registry.async_remove(registry_entry.entity_id)
 
 
-class GrampsWebNextBirthdayNameSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing only the name."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_name"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_name"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return "Keine Daten"
-        return birthday.get("person_name")
-
-    @property
-    def icon(self):
-        return "mdi:account"
+def kind_device(coordinator, entry: ConfigEntry, kind: str) -> DeviceInfo:
+    """The device that groups one kind's entities."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{entry.entry_id}_{kind}")},
+        name=coordinator.names[kind],
+        manufacturer="Gramps Web",
+        model=KINDS[kind][1],
+        entry_type=DeviceEntryType.SERVICE,
+        configuration_url=entry.data.get(CONF_URL),
+        via_device_id=coordinator.device_id,
+    )
 
 
-class GrampsWebNextBirthdayAgeSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing only the age."""
+class GrampsEntity(CoordinatorEntity):
+    """Keeps showing the last fetched data while Gramps Web is unreachable.
 
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_age"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_age"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        return birthday.get("age")
-
-    @property
-    def icon(self):
-        return "mdi:numeric"
-
-
-class GrampsWebNextBirthdayDateSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing only the date."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_date"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        birth_date = birthday.get("birth_date")
-        # We display the original birth date (not the upcoming birthday)
-        if birth_date:
-            try:
-                dt = datetime.fromisoformat(birth_date)
-                return dt.date()
-            except Exception as e:
-                _LOGGER.error(f"Birthday {self._index}: Error parsing date {birth_date}: {e}")
-                return None
-        return None
-
-    @property
-    def icon(self):
-        return "mdi:calendar"
-
-
-class GrampsWebNextBirthdayUpcomingDateSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing the upcoming birthday date."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_upcoming_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_upcoming_date"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        next_birthday = birthday.get("next_birthday")
-        # Display the upcoming birthday
-        if next_birthday:
-            try:
-                dt = datetime.fromisoformat(next_birthday)
-                return dt.date()
-            except Exception as e:
-                _LOGGER.error(f"Birthday Upcoming {self._index}: Error parsing date {next_birthday}: {e}")
-                return None
-        return None
-
-    @property
-    def icon(self):
-        return "mdi:cake"
-
-
-class GrampsWebNextBirthdayDaysUntilSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing days until birthday."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_days_until"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_days_until"
-        self._attr_native_unit_of_measurement = "days"
-        self._attr_native_value = 999
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        result = None
-        if not birthday:
-            result = 999
-            _LOGGER.debug(f"Birthday {self._index + 1} Days Until: No birthday data, returning 999")
-        else:
-            result = birthday.get("days_until", 999)
-            _LOGGER.debug(
-                f"Birthday {self._index + 1} Days Until: "
-                f"Name={birthday.get('person_name')}, "
-                f"Days={result}, "
-                f"Type={type(result)}"
-            )
-        return result
+    The lists hold absolute dates, so they stay valid between fetches.
+    """
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        return True
-
-    @property
-    def icon(self):
-        return "mdi:calendar-clock"
+        return self.coordinator.data is not None
 
 
-class GrampsWebNextBirthdayImageSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing image URL."""
-    
-    _attr_entity_registry_enabled_default = True
+class GrampsEventSensor(GrampsEntity, SensorEntity):
+    """One field of the n-th upcoming event of a kind."""
 
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_image"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_image"
+    entity_description: GrampsSensorDescription
+    # the photo URL's token changes every few minutes: keep it out of the history
+    _unrecorded_attributes = frozenset({ATTR_ENTITY_PICTURE})
 
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        return birthday.get("image_url", "No Image")
-
-    @property
-    def icon(self):
-        return "mdi:image-outline"
-
-    @property
-    def entity_picture(self):
-        """Return entity picture from Gramps if available."""
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        return birthday.get("image_url")
-
-
-class GrampsWebNextBirthdayLinkSensor(GrampsWebNextBirthdayBase):
-    """Next birthday sensor showing Gramps Web link."""
-    
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["birthday_link"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_birthday_{index}_link"
-        self._entry = entry
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        person_handle = birthday.get("person_handle")
-        if not person_handle:
-            return None
-        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
-        return f"{base_url}/person/{person_handle}"
-
-    @property
-    def icon(self):
-        return "mdi:link"
-
-
-class GrampsWebNextDeceasedBirthdayBase(CoordinatorEntity, SensorEntity):
-    """Base class for birthday sensors limited to deceased people."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
+    def __init__(self, coordinator, entry: ConfigEntry, kind: str, index: int,
+                 description: GrampsSensorDescription) -> None:
         super().__init__(coordinator)
+        prefix = KINDS[kind][0]
+        self.entity_description = description
+        self._kind = kind
         self._index = index
-        self._entry = entry
+        self._base_url = entry.data.get(CONF_URL, "").rstrip("/")
+        self._attr_unique_id = f"{entry.entry_id}_{prefix}_{index}_{description.key}"
+        self._attr_name = coordinator.names[f"{prefix}_{description.name_key or description.key}"].format(n=index + 1)
+        self._attr_device_info = kind_device(coordinator, entry, kind)
+        # image sensors show the photo of the matching image entity (image.py)
+        self._photo_unique_id = (
+            f"{entry.entry_id}_{prefix}_{index}_{description.key.replace('image', 'photo')}"
+            if description.key.startswith("image")
+            else None
+        )
+        self._photo_entity_id: str | None = None
 
-    def _get_birthday(self) -> dict | None:
-        birthdays = self.coordinator.hass.data.get(
-            f"{DOMAIN}_deceased_birthdays", {}
-        ).get(self._entry.entry_id, [])
-        if self._index >= len(birthdays):
-            return None
-        return birthdays[self._index]
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self._photo_unique_id:
+            self._photo_entity_id = er.async_get(self.hass).async_get_entity_id(
+                "image", DOMAIN, self._photo_unique_id
+            )
+        if self._photo_entity_id:
+            # its URL carries an access token that changes every few minutes
+            self.async_on_remove(
+                async_track_state_change_event(self.hass, self._photo_entity_id, self._photo_changed)
+            )
+
+    @callback
+    def _photo_changed(self, _event: StateEvent[EventStateChangedData]) -> None:
+        self.async_write_ha_state()
 
     @property
-    def device_info(self) -> DeviceInfo:
-        config_url = self._entry.data.get(CONF_URL)
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._entry.entry_id}_deceased_birthdays")},
-            name=self.coordinator.names["deceased_birthdays"],
-            manufacturer="Gramps Web",
-            model="Deceased Birthdays",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=config_url,
-            via_device_id=self.coordinator.device_id,
-        )
+    def entity_picture(self) -> str | None:
+        if not self._photo_entity_id:
+            return None
+        photo = self.hass.states.get(self._photo_entity_id)
+        if photo is None or photo.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return None
+        return photo.attributes.get(ATTR_ENTITY_PICTURE)
+
+    def _event(self) -> Event | None:
+        events = self.coordinator.events(self._kind)
+        return events[self._index] if self._index < len(events) else None
+
+    @property
+    def native_value(self):
+        event = self._event()
+        return self.entity_description.value_fn(event, self._base_url) if event else None
 
     @property
     def extra_state_attributes(self):
-        birthday = self._get_birthday()
-        if not birthday:
+        if self._kind not in ("birthdays", "deceased_birthdays"):
+            return None
+        event = self._event()
+        if not event:
             return {}
         return {
-            ATTR_PERSON_NAME: birthday.get("person_name"),
-            ATTR_BIRTH_DATE: birthday.get("birth_date"),
-            ATTR_AGE: birthday.get("age"),
-            ATTR_DAYS_UNTIL: birthday.get("days_until"),
-            "next_birthday": birthday.get("next_birthday"),
-            "image_url": birthday.get("image_url"),
+            key: event.get(key)
+            for key in ("person_name", "birth_date", "age", "days_until", "next_birthday", "image_url")
         }
 
 
-class GrampsWebNextDeceasedBirthdayNameSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Next birthday of a deceased person, showing the name."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_name"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_name"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        return birthday.get("person_name") if birthday else "Keine Daten"
-
-    @property
-    def icon(self):
-        return "mdi:account"
-
-
-class GrampsWebNextDeceasedBirthdayAgeSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Age the deceased person would have reached on their next birthday."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_age"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_age"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        return birthday.get("age") if birthday else None
-
-    @property
-    def icon(self):
-        return "mdi:numeric"
-
-
-class GrampsWebNextDeceasedBirthdayDateSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Original birth date of the deceased person."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_date"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday or not birthday.get("birth_date"):
-            return None
-        try:
-            return datetime.fromisoformat(birthday["birth_date"]).date()
-        except (TypeError, ValueError) as err:
-            _LOGGER.error(
-                "Deceased birthday %s: Error parsing date %s: %s",
-                self._index,
-                birthday.get("birth_date"),
-                err,
-            )
-            return None
-
-    @property
-    def icon(self):
-        return "mdi:calendar"
-
-
-class GrampsWebNextDeceasedBirthdayUpcomingDateSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Upcoming birthday date for a deceased person."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_upcoming_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_upcoming_date"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday or not birthday.get("next_birthday"):
-            return None
-        try:
-            return datetime.fromisoformat(birthday["next_birthday"]).date()
-        except (TypeError, ValueError) as err:
-            _LOGGER.error(
-                "Deceased birthday %s: Error parsing upcoming date %s: %s",
-                self._index,
-                birthday.get("next_birthday"),
-                err,
-            )
-            return None
-
-    @property
-    def icon(self):
-        return "mdi:cake"
-
-
-class GrampsWebNextDeceasedBirthdayDaysUntilSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Days until the next birthday of a deceased person."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_days_until"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_days_until"
-        self._attr_native_unit_of_measurement = "days"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        return birthday.get("days_until", 999) if birthday else 999
-
-    @property
-    def available(self) -> bool:
-        return True
-
-    @property
-    def icon(self):
-        return "mdi:calendar-clock"
-
-
-class GrampsWebNextDeceasedBirthdayImageSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Profile image of the deceased person."""
-
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_image"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_image"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        return birthday.get("image_url") if birthday else None
-
-    @property
-    def icon(self):
-        return "mdi:image-outline"
-
-    @property
-    def entity_picture(self):
-        birthday = self._get_birthday()
-        return birthday.get("image_url") if birthday else None
-
-
-class GrampsWebNextDeceasedBirthdayLinkSensor(GrampsWebNextDeceasedBirthdayBase):
-    """Gramps Web link for the deceased person."""
-
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deceased_birthday_link"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deceased_birthday_{index}_link"
-
-    @property
-    def native_value(self):
-        birthday = self._get_birthday()
-        if not birthday:
-            return None
-        person_handle = birthday.get("person_handle")
-        if not person_handle:
-            return None
-        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
-        return f"{base_url}/person/{person_handle}"
-
-    @property
-    def icon(self):
-        return "mdi:link"
-
-
-class GrampsWebAllBirthdaysSensor(CoordinatorEntity, SensorEntity):
+class GrampsWebAllBirthdaysSensor(GrampsEntity, SensorEntity):
     """Representation of all upcoming birthdays sensor."""
+
+    _attr_icon = "mdi:calendar-multiple"
+    # Names and birth dates of up to 50 living people: every HA user can read
+    # states, so this is opt-in for new installs and kept out of the history DB.
+    _attr_entity_registry_enabled_default = False
+    _unrecorded_attributes = frozenset({"birthdays"})
 
     def __init__(self, coordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._attr_name = coordinator.names["all_birthdays"]
         self._attr_unique_id = f"{entry.entry_id}_all_birthdays"
-        self._entry = entry
-
-    @property
-    def native_value(self):
-        """Return the state of the sensor."""
-        if not self.coordinator.data:
-            return 0
-
-        return len(self.coordinator.data)
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        if not self.coordinator.data:
-            return {"birthdays": []}
-
-        return {
-            "birthdays": self.coordinator.data,
-        }
-
-    @property
-    def icon(self):
-        """Return the icon to use in the frontend."""
-        return "mdi:calendar-multiple"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info for grouping in HA UI."""
-        config_url = self._entry.data.get(CONF_URL)
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._entry.entry_id)},
-            name=self._entry.title or "Gramps HA",
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry.title or "Gramps HA",
             manufacturer="Gramps Web",
             model="Birthdays",
             entry_type=DeviceEntryType.SERVICE,
-            configuration_url=config_url,
+            configuration_url=entry.data.get(CONF_URL),
         )
 
-
-class GrampsWebNextDeathdayBase(CoordinatorEntity, SensorEntity):
-    """Base class for deathday sensors."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator)
-        self._index = index
-        self._entry = entry
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        config_url = self._entry.data.get(CONF_URL)
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._entry.entry_id}_deathdays")},
-            name=self.coordinator.names["deathdays"],
-            manufacturer="Gramps Web",
-            model="Deathdays",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=config_url,
-            via_device_id=self.coordinator.device_id,
-        )
-
-
-class GrampsWebNextAnniversaryBase(CoordinatorEntity, SensorEntity):
-    """Base class for anniversary sensors."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator)
-        self._index = index
-        self._entry = entry
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        config_url = self._entry.data.get(CONF_URL)
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._entry.entry_id}_anniversaries")},
-            name=self.coordinator.names["anniversaries"],
-            manufacturer="Gramps Web",
-            model="Anniversaries",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=config_url,
-            via_device_id=self.coordinator.device_id,
-        )
-
-
-class GrampsWebNextDeathdayNameSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing name."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_name"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_name"
-
     @property
     def native_value(self):
-        if not self.coordinator.data:
-            return None
-        # Fetch deathday data
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        return deathday_list[self._index].get("person_name")
+        return len(self.coordinator.events("birthdays"))
 
     @property
-    def icon(self):
-        return "mdi:skull"
-
-
-class GrampsWebNextDeathdayDateSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing death date."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_date"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        death_date = deathday_list[self._index].get("death_date")
-        if death_date:
-            try:
-                dt = datetime.fromisoformat(death_date)
-                return dt.date()
-            except Exception as e:
-                _LOGGER.error(f"Deathday {self._index}: Error parsing date {death_date}: {e}")
-                return None
-        return None
-
-    @property
-    def icon(self):
-        return "mdi:calendar"
-
-
-class GrampsWebNextDeathdayUpcomingDateSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing the upcoming deathday date."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_upcoming_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_upcoming_date"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        next_deathday = deathday_list[self._index].get("next_deathday")
-        if next_deathday:
-            try:
-                dt = datetime.fromisoformat(next_deathday)
-                return dt.date()
-            except Exception as e:
-                _LOGGER.error(f"Deathday Upcoming {self._index}: Error parsing date {next_deathday}: {e}")
-                return None
-        return None
-
-    @property
-    def icon(self):
-        return "mdi:skull"
-
-
-class GrampsWebNextDeathdayYearsAgoSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing years ago."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_years_ago"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_years_ago"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        return deathday_list[self._index].get("years_ago")
-
-    @property
-    def icon(self):
-        return "mdi:history"
-
-
-class GrampsWebNextDeathdayDaysUntilSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing days until."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_days_until"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_days_until"
-        self._attr_native_unit_of_measurement = "days"
-        self._attr_native_value = 999
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return 999
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return 999
-        return deathday_list[self._index].get("days_until", 999)
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return True
-
-    @property
-    def icon(self):
-        return "mdi:calendar-clock"
-
-
-class GrampsWebNextDeathdayImageSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing image URL."""
-    
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_image"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_image"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        return deathday_list[self._index].get("image_url", "No Image")
-
-    @property
-    def icon(self):
-        return "mdi:image-outline"
-
-    @property
-    def entity_picture(self):
-        """Return entity picture from Gramps if available."""
-        if not self.coordinator.data:
-            return None
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        return deathday_list[self._index].get("image_url")
-
-
-class GrampsWebNextDeathdayLinkSensor(GrampsWebNextDeathdayBase):
-    """Next deathday sensor showing Gramps Web link."""
-    
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["deathday_link"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_deathday_{index}_link"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        deathdays = self.coordinator.hass.data.get(f"{DOMAIN}_deathdays", {})
-        deathday_list = deathdays.get(self._entry.entry_id, [])
-        if self._index >= len(deathday_list):
-            return None
-        person_handle = deathday_list[self._index].get("person_handle")
-        if not person_handle:
-            return None
-        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
-        return f"{base_url}/person/{person_handle}"
-
-    @property
-    def icon(self):
-        return "mdi:link"
-
-
-class GrampsWebNextAnniversaryNameSensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing names."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_name"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_name"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        return anniversary_list[self._index].get("person_name")
-
-    @property
-    def icon(self):
-        return "mdi:heart-multiple"
-
-
-class GrampsWebNextAnniversaryYearsTogetherSensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing years together."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_years_together"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_years_together"
-        self._attr_native_unit_of_measurement = "years"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        return anniversary_list[self._index].get("years_together")
-
-    @property
-    def icon(self):
-        return "mdi:numeric"
-
-
-class GrampsWebNextAnniversaryDateSensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing marriage date."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_date"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        marriage_date = anniversary_list[self._index].get("marriage_date")
-        if marriage_date:
-            try:
-                dt = datetime.fromisoformat(marriage_date)
-                return dt.date()
-            except Exception as e:
-                _LOGGER.error(f"Anniversary {self._index}: Error parsing date {marriage_date}: {e}")
-                return None
-        return None
-
-    @property
-    def icon(self):
-        return "mdi:calendar"
-
-
-class GrampsWebNextAnniversaryUpcomingDateSensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing the upcoming anniversary date."""
-
-    _attr_device_class = SensorDeviceClass.DATE
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_upcoming_date"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_upcoming_date"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        next_anniversary = anniversary_list[self._index].get("next_anniversary")
-        if next_anniversary:
-            try:
-                dt = datetime.fromisoformat(next_anniversary)
-                return dt.date()
-            except Exception as e:
-                _LOGGER.error(f"Anniversary Upcoming {self._index}: Error parsing date {next_anniversary}: {e}")
-                return None
-        return None
-
-    @property
-    def icon(self):
-        return "mdi:heart"
-
-
-class GrampsWebNextAnniversaryDaysUntilSensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing days until."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_days_until"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_days_until"
-        self._attr_native_unit_of_measurement = "days"
-        self._attr_native_value = 999
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return 999
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return 999
-        return anniversary_list[self._index].get("days_until", 999)
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return True
-
-    @property
-    def icon(self):
-        return "mdi:calendar-clock"
-
-
-class GrampsWebNextAnniversaryImagePerson1Sensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing image of person 1."""
-    
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_image_person_1"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_image_person1"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        return anniversary_list[self._index].get("image_url_person1", "No Image")
-
-    @property
-    def icon(self):
-        return "mdi:image-outline"
-
-    @property
-    def entity_picture(self):
-        """Return entity picture from Gramps if available."""
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        return anniversary_list[self._index].get("image_url_person1")
-
-
-class GrampsWebNextAnniversaryImagePerson2Sensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing image of person 2."""
-    
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_image_person_2"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_image_person2"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        return anniversary_list[self._index].get("image_url_person2", "No Image")
-
-    @property
-    def icon(self):
-        return "mdi:image-outline"
-
-    @property
-    def entity_picture(self):
-        """Return entity picture from Gramps if available."""
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        return anniversary_list[self._index].get("image_url_person2")
-
-
-class GrampsWebNextAnniversaryLinkSensor(GrampsWebNextAnniversaryBase):
-    """Next anniversary sensor showing Gramps Web link to family."""
-    
-    _attr_entity_registry_enabled_default = True
-
-    def __init__(self, coordinator, entry: ConfigEntry, index: int) -> None:
-        super().__init__(coordinator, entry, index)
-        self._attr_name = coordinator.names["anniversary_link"].format(n=index + 1)
-        self._attr_unique_id = f"{entry.entry_id}_anniversary_{index}_link"
-
-    @property
-    def native_value(self):
-        if not self.coordinator.data:
-            return None
-        anniversaries = self.coordinator.hass.data.get(f"{DOMAIN}_anniversaries", {})
-        anniversary_list = anniversaries.get(self._entry.entry_id, [])
-        if self._index >= len(anniversary_list):
-            return None
-        family_handle = anniversary_list[self._index].get("family_handle")
-        if not family_handle:
-            return None
-        base_url = self._entry.data.get(CONF_URL, "").rstrip("/")
-        return f"{base_url}/family/{family_handle}"
-
-    @property
-    def icon(self):
-        return "mdi:link"
+    def extra_state_attributes(self):
+        return {"birthdays": self.coordinator.events("birthdays")}

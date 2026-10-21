@@ -14,12 +14,21 @@
           "scan_interval": "Intervallo di aggiornamento (ore)",
           "entity_language": "Nomi delle entità",
           "notify_events": "Notifica il giorno prima",
-          "notify_mode": "Durata della notifica"
+          "notify_mode": "Durata della notifica",
+          "show_deceased_birthdays": "Mostra i compleanni dei defunti"
         },
         "data_description": {
           "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
           "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
-          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata."
+          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata.",
+          "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute.",
+          "num_birthdays": "Quanti compleanni imminenti hanno un proprio gruppo di sensori.",
+          "scan_interval": "Ogni quanto recuperare nuovi dati da Gramps Web. Predefinito: 168 (una volta a settimana).",
+          "show_anniversaries": "Crea anche sensori per i prossimi anniversari di matrimonio.",
+          "show_deathdays": "Crea anche sensori per i prossimi anniversari di morte.",
+          "url": "URL di base della tua istanza Gramps Web, ad es. {example_url}",
+          "username": "Un utente Gramps Web. Basta un account in sola lettura con il ruolo Member.",
+          "password": "Password di quell'utente Gramps Web."
         }
       },
       "reconfigure": {
@@ -35,23 +44,42 @@
           "scan_interval": "Intervallo di aggiornamento (ore)",
           "entity_language": "Nomi delle entità",
           "notify_events": "Notifica il giorno prima",
-          "notify_mode": "Durata della notifica"
+          "notify_mode": "Durata della notifica",
+          "show_deceased_birthdays": "Mostra i compleanni dei defunti"
         },
         "data_description": {
           "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
           "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
-          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata."
+          "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata.",
+          "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute.",
+          "password": "Lascia vuoto per mantenere la password attuale.",
+          "num_birthdays": "Quanti compleanni imminenti hanno un proprio gruppo di sensori.",
+          "scan_interval": "Ogni quanto recuperare nuovi dati da Gramps Web. Predefinito: 168 (una volta a settimana).",
+          "show_anniversaries": "Crea anche sensori per i prossimi anniversari di matrimonio.",
+          "show_deathdays": "Crea anche sensori per i prossimi anniversari di morte.",
+          "url": "URL di base della tua istanza Gramps Web, ad es. {example_url}",
+          "username": "Un utente Gramps Web. Basta un account in sola lettura con il ruolo Member."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Accedi di nuovo a Gramps Web",
+        "description": "Gramps Web ({url}) ha rifiutato le credenziali salvate. Inserisci la password attuale.",
+        "data": {
+          "password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Connessione fallita",
       "invalid_url": "URL non valido",
-      "unknown": "Si è verificato un errore sconosciuto"
+      "unknown": "Si è verificato un errore sconosciuto",
+      "invalid_auth": "Gramps Web ha rifiutato nome utente o password",
+      "insecure_url": "Usa https:// o un indirizzo locale: http invia la password in chiaro"
     },
     "abort": {
       "already_configured": "Questa istanza Gramps Web è già configurata",
-      "reconfigure_successful": "Riconfigurazione riuscita"
+      "reconfigure_successful": "Riconfigurazione riuscita",
+      "reauth_successful": "Riautenticazione riuscita"
     }
   },
   "exceptions": {
@@ -193,6 +221,23 @@
       },
       "all_birthdays": {
         "name": "Tutti i prossimi compleanni"
+      }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Prossimo compleanno {n} Foto"
+      },
+      "deceased_birthday_photo": {
+        "name": "Prossimo compleanno defunto {n} Foto"
+      },
+      "deathday_photo": {
+        "name": "Prossimo anniversario di morte {n} Foto"
+      },
+      "anniversary_photo_person1": {
+        "name": "Prossimo anniversario di matrimonio {n} Foto persona 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Prossimo anniversario di matrimonio {n} Foto persona 2"
       }
     }
   },

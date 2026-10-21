@@ -13,56 +13,56 @@ cards:
   - type: entities
     title: 1
     entities:
-      - entity: sensor.next_birthday_1_name
+      - entity: sensor.birthdays_next_birthday_1_name
         name: Name
-      - entity: sensor.next_birthday_1_age
+      - entity: sensor.birthdays_next_birthday_1_age
         name: Alter
-      - entity: sensor.next_birthday_1_date
+      - entity: sensor.birthdays_next_birthday_1_date
         name: Datum
   - type: entities
     title: 2
     entities:
-      - entity: sensor.next_birthday_2_name
+      - entity: sensor.birthdays_next_birthday_2_name
         name: Name
-      - entity: sensor.next_birthday_2_age
+      - entity: sensor.birthdays_next_birthday_2_age
         name: Alter
-      - entity: sensor.next_birthday_2_date
+      - entity: sensor.birthdays_next_birthday_2_date
         name: Datum
   - type: entities
     title: 3
     entities:
-      - entity: sensor.next_birthday_3_name
+      - entity: sensor.birthdays_next_birthday_3_name
         name: Name
-      - entity: sensor.next_birthday_3_age
+      - entity: sensor.birthdays_next_birthday_3_age
         name: Alter
-      - entity: sensor.next_birthday_3_date
+      - entity: sensor.birthdays_next_birthday_3_date
         name: Datum
   - type: entities
     title: 4
     entities:
-      - entity: sensor.next_birthday_4_name
+      - entity: sensor.birthdays_next_birthday_4_name
         name: Name
-      - entity: sensor.next_birthday_4_age
+      - entity: sensor.birthdays_next_birthday_4_age
         name: Alter
-      - entity: sensor.next_birthday_4_date
+      - entity: sensor.birthdays_next_birthday_4_date
         name: Datum
   - type: entities
     title: 5
     entities:
-      - entity: sensor.next_birthday_5_name
+      - entity: sensor.birthdays_next_birthday_5_name
         name: Name
-      - entity: sensor.next_birthday_5_age
+      - entity: sensor.birthdays_next_birthday_5_age
         name: Alter
-      - entity: sensor.next_birthday_5_date
+      - entity: sensor.birthdays_next_birthday_5_date
         name: Datum
   - type: entities
     title: 6
     entities:
-      - entity: sensor.next_birthday_6_name
+      - entity: sensor.birthdays_next_birthday_6_name
         name: Name
-      - entity: sensor.next_birthday_6_age
+      - entity: sensor.birthdays_next_birthday_6_age
         name: Alter
-      - entity: sensor.next_birthday_6_date
+      - entity: sensor.birthdays_next_birthday_6_date
         name: Datum
 ```
 
@@ -73,12 +73,12 @@ type: markdown
 title: Geburtstage (kommend)
 content: |
   {% set items = [
-    (states('sensor.next_birthday_1_name'), states('sensor.next_birthday_1_age'), states('sensor.next_birthday_1_date')),
-    (states('sensor.next_birthday_2_name'), states('sensor.next_birthday_2_age'), states('sensor.next_birthday_2_date')),
-    (states('sensor.next_birthday_3_name'), states('sensor.next_birthday_3_age'), states('sensor.next_birthday_3_date')),
-    (states('sensor.next_birthday_4_name'), states('sensor.next_birthday_4_age'), states('sensor.next_birthday_4_date')),
-    (states('sensor.next_birthday_5_name'), states('sensor.next_birthday_5_age'), states('sensor.next_birthday_5_date')),
-    (states('sensor.next_birthday_6_name'), states('sensor.next_birthday_6_age'), states('sensor.next_birthday_6_date'))
+    (states('sensor.birthdays_next_birthday_1_name'), states('sensor.birthdays_next_birthday_1_age'), states('sensor.birthdays_next_birthday_1_date')),
+    (states('sensor.birthdays_next_birthday_2_name'), states('sensor.birthdays_next_birthday_2_age'), states('sensor.birthdays_next_birthday_2_date')),
+    (states('sensor.birthdays_next_birthday_3_name'), states('sensor.birthdays_next_birthday_3_age'), states('sensor.birthdays_next_birthday_3_date')),
+    (states('sensor.birthdays_next_birthday_4_name'), states('sensor.birthdays_next_birthday_4_age'), states('sensor.birthdays_next_birthday_4_date')),
+    (states('sensor.birthdays_next_birthday_5_name'), states('sensor.birthdays_next_birthday_5_age'), states('sensor.birthdays_next_birthday_5_date')),
+    (states('sensor.birthdays_next_birthday_6_name'), states('sensor.birthdays_next_birthday_6_age'), states('sensor.birthdays_next_birthday_6_date'))
   ] %}
   {% for n, a, d in items if n not in ['unknown','unavailable',''] %}
   - **{{ n }}** — {{ d }}{% if a not in ['unknown','unavailable',''] %} ({{ a }} Jahre){% endif %}
@@ -91,11 +91,11 @@ content: |
 type: entities
 title: Kommende Geburtstage
 entities:
-  - sensor.next_birthday_1
-  - sensor.next_birthday_2
-  - sensor.next_birthday_3
-  - sensor.next_birthday_4
-  - sensor.next_birthday_5
+  - sensor.birthdays_next_birthday_1_name
+  - sensor.birthdays_next_birthday_2_name
+  - sensor.birthdays_next_birthday_3_name
+  - sensor.birthdays_next_birthday_4_name
+  - sensor.birthdays_next_birthday_5_name
 show_header_toggle: false
 ```
 
@@ -107,7 +107,7 @@ title: 🎂 Geburtstage
 content: |
   {% set ns = namespace(found=false) %}
   {% for i in range(1, 6) %}
-    {% set entity_id = 'sensor.next_birthday_' ~ i %}
+    {% set entity_id = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
     {% if states(entity_id) not in ['unknown', 'unavailable', 'none'] %}
       {% set ns.found = true %}
       <ha-icon icon="mdi:cake-variant"></ha-icon> **{{ states(entity_id) }}**
@@ -130,7 +130,7 @@ content: |
   | Name | Alter | Datum | Tage |
   |------|-------|-------|------|
   {% for i in range(1, 6) %}
-  {% set e = 'sensor.next_birthday_' ~ i %}
+  {% set e = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
   {% if states(e) not in ['unknown', 'unavailable'] %}
   | {{ states(e) }} | {{ state_attr(e, 'age') }} | {{ state_attr(e, 'next_birthday') }} | {{ state_attr(e, 'days_until') }} |
   {% endif %}
@@ -142,16 +142,16 @@ content: |
 ```yaml
 type: conditional
 conditions:
-  - entity: sensor.next_birthday_1
+  - entity: sensor.birthdays_next_birthday_1_name
     state_not: unavailable
-  - entity: sensor.next_birthday_1
+  - entity: sensor.birthdays_next_birthday_1_name
     attribute: days_until
     below: 8
 card:
   type: markdown
   content: |
     # ⚠️ Geburtstag bald!
-    **{{ states('sensor.next_birthday_1') }}** wird in {{ state_attr('sensor.next_birthday_1', 'days_until') }} Tagen {{ state_attr('sensor.next_birthday_1', 'age') }} Jahre alt! 🎉
+    **{{ states('sensor.birthdays_next_birthday_1_name') }}** wird in {{ state_attr('sensor.birthdays_next_birthday_1_name', 'days_until') }} Tagen {{ state_attr('sensor.birthdays_next_birthday_1_name', 'age') }} Jahre alt! 🎉
 ```
 
 ### 5. Glance Card für schnelle Übersicht
@@ -160,15 +160,15 @@ card:
 type: glance
 title: Nächste 5 Geburtstage
 entities:
-  - entity: sensor.next_birthday_1
+  - entity: sensor.birthdays_next_birthday_1_name
     name: 1.
-  - entity: sensor.next_birthday_2
+  - entity: sensor.birthdays_next_birthday_2_name
     name: 2.
-  - entity: sensor.next_birthday_3
+  - entity: sensor.birthdays_next_birthday_3_name
     name: 3.
-  - entity: sensor.next_birthday_4
+  - entity: sensor.birthdays_next_birthday_4_name
     name: 4.
-  - entity: sensor.next_birthday_5
+  - entity: sensor.birthdays_next_birthday_5_name
     name: 5.
 show_name: true
 show_icon: true
@@ -190,7 +190,7 @@ automation:
         value_template: >
           {% set ns = namespace(found=false) %}
           {% for i in range(1, 6) %}
-            {% set entity_id = 'sensor.next_birthday_' ~ i %}
+            {% set entity_id = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
             {% if state_attr(entity_id, 'days_until') == 7 %}
               {% set ns.found = true %}
             {% endif %}
@@ -202,7 +202,7 @@ automation:
           title: "Geburtstag in 7 Tagen"
           message: >
             {% for i in range(1, 6) %}
-              {% set entity_id = 'sensor.next_birthday_' ~ i %}
+              {% set entity_id = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
               {% if state_attr(entity_id, 'days_until') == 7 %}
                 {{ states(entity_id) }} wird in 7 Tagen {{ state_attr(entity_id, 'age') }} Jahre alt!
               {% endif %}
@@ -222,7 +222,7 @@ automation:
         value_template: >
           {% set ns = namespace(found=false) %}
           {% for i in range(1, 6) %}
-            {% set entity_id = 'sensor.next_birthday_' ~ i %}
+            {% set entity_id = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
             {% if state_attr(entity_id, 'days_until') == 0 %}
               {% set ns.found = true %}
             {% endif %}
@@ -234,7 +234,7 @@ automation:
           title: "🎉 Geburtstag heute!"
           message: >
             {% for i in range(1, 6) %}
-              {% set entity_id = 'sensor.next_birthday_' ~ i %}
+              {% set entity_id = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
               {% if state_attr(entity_id, 'days_until') == 0 %}
                 Heute wird {{ states(entity_id) }} {{ state_attr(entity_id, 'age') }} Jahre alt! 🎂
               {% endif %}
@@ -252,7 +252,7 @@ template:
         state: >
           {% set ns = namespace(count=0) %}
           {% for i in range(1, 6) %}
-            {% set entity_id = 'sensor.next_birthday_' ~ i %}
+            {% set entity_id = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
             {% if state_attr(entity_id, 'days_until') is not none and state_attr(entity_id, 'days_until') <= 30 %}
               {% set ns.count = ns.count + 1 %}
             {% endif %}
@@ -268,16 +268,16 @@ template:
   - sensor:
       - name: "Nächster Geburtstag"
         state: >
-          {{ states('sensor.next_birthday_1') }}
+          {{ states('sensor.birthdays_next_birthday_1_name') }}
         attributes:
           person: >
-            {{ states('sensor.next_birthday_1') }}
+            {{ states('sensor.birthdays_next_birthday_1_name') }}
           days: >
-            {{ state_attr('sensor.next_birthday_1', 'days_until') }}
+            {{ state_attr('sensor.birthdays_next_birthday_1_name', 'days_until') }}
           age: >
-            {{ state_attr('sensor.next_birthday_1', 'age') }}
+            {{ state_attr('sensor.birthdays_next_birthday_1_name', 'age') }}
           date: >
-            {{ state_attr('sensor.next_birthday_1', 'next_birthday') }}
+            {{ state_attr('sensor.birthdays_next_birthday_1_name', 'next_birthday') }}
         icon: mdi:cake-variant
 ```
 
@@ -295,7 +295,7 @@ script:
           title: "Anstehende Geburtstage"
           message: |
             {% for i in range(1, 6) %}
-              {% set e = 'sensor.next_birthday_' ~ i %}
+              {% set e = 'sensor.birthdays_next_birthday_' ~ i ~ '_name' %}
               {% if states(e) not in ['unknown', 'unavailable'] and state_attr(e, 'days_until') <= 14 %}
                 • {{ states(e) }} - in {{ state_attr(e, 'days_until') }} Tagen ({{ state_attr(e, 'age') }} Jahre)
               {% endif %}
@@ -312,7 +312,7 @@ script:
         "name": "Geburtstag Check",
         "server": "home_assistant",
         "version": 4,
-        "entityidfilter": "sensor.next_birthday_1",
+        "entityidfilter": "sensor.birthdays_next_birthday_1_name",
         "entityidfiltertype": "exact",
         "outputinitially": false,
         "state_type": "str",

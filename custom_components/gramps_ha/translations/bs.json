@@ -14,12 +14,21 @@
           "scan_interval": "Interval ažuriranja (sati)",
           "entity_language": "Nazivi entiteta",
           "notify_events": "Obavijesti dan ranije",
-          "notify_mode": "Trajanje obavijesti"
+          "notify_mode": "Trajanje obavijesti",
+          "show_deceased_birthdays": "Prikaži rođendane preminulih"
         },
         "data_description": {
           "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
-          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
+          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
+          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba.",
+          "num_birthdays": "Koliko predstojećih rođendana dobija vlastiti skup senzora.",
+          "scan_interval": "Koliko često preuzimati nove podatke iz Gramps Weba. Zadano: 168 (jednom sedmično).",
+          "show_anniversaries": "Napravi i senzore za predstojeće godišnjice braka.",
+          "show_deathdays": "Napravi i senzore za predstojeće godišnjice smrti.",
+          "url": "Osnovni URL vaše Gramps Web instance, npr. {example_url}",
+          "username": "Korisnik Gramps Weba. Dovoljan je račun samo za čitanje s ulogom Member.",
+          "password": "Lozinka tog korisnika Gramps Weba."
         }
       },
       "reconfigure": {
@@ -35,23 +44,42 @@
           "scan_interval": "Interval ažuriranja (sati)",
           "entity_language": "Nazivi entiteta",
           "notify_events": "Obavijesti dan ranije",
-          "notify_mode": "Trajanje obavijesti"
+          "notify_mode": "Trajanje obavijesti",
+          "show_deceased_birthdays": "Prikaži rođendane preminulih"
         },
         "data_description": {
           "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
-          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
+          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
+          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba.",
+          "password": "Ostavite prazno da zadržite trenutnu lozinku.",
+          "num_birthdays": "Koliko predstojećih rođendana dobija vlastiti skup senzora.",
+          "scan_interval": "Koliko često preuzimati nove podatke iz Gramps Weba. Zadano: 168 (jednom sedmično).",
+          "show_anniversaries": "Napravi i senzore za predstojeće godišnjice braka.",
+          "show_deathdays": "Napravi i senzore za predstojeće godišnjice smrti.",
+          "url": "Osnovni URL vaše Gramps Web instance, npr. {example_url}",
+          "username": "Korisnik Gramps Weba. Dovoljan je račun samo za čitanje s ulogom Member."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponovo se prijavite na Gramps Web",
+        "description": "Gramps Web ({url}) je odbio sačuvanu prijavu. Unesite trenutnu lozinku.",
+        "data": {
+          "password": "Lozinka"
         }
       }
     },
     "error": {
       "cannot_connect": "Povezivanje nije uspjelo",
       "invalid_url": "Nevažeći URL",
-      "unknown": "Došlo je do nepoznate greške"
+      "unknown": "Došlo je do nepoznate greške",
+      "invalid_auth": "Gramps Web je odbio korisničko ime ili lozinku",
+      "insecure_url": "Koristite https:// ili lokalnu adresu: http šalje lozinku nešifrovano"
     },
     "abort": {
       "already_configured": "Ova Gramps Web instanca je već konfigurirana",
-      "reconfigure_successful": "Ponovna konfiguracija uspješna"
+      "reconfigure_successful": "Ponovna konfiguracija uspješna",
+      "reauth_successful": "Ponovna prijava je uspjela"
     }
   },
   "exceptions": {
@@ -193,6 +221,23 @@
       },
       "all_birthdays": {
         "name": "Svi nadolazeći rođendani"
+      }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Sljedeći rođendan {n} Fotografija"
+      },
+      "deceased_birthday_photo": {
+        "name": "Sljedeći rođendan preminulog {n} Fotografija"
+      },
+      "deathday_photo": {
+        "name": "Sljedeća godišnjica smrti {n} Fotografija"
+      },
+      "anniversary_photo_person1": {
+        "name": "Sljedeća godišnjica braka {n} Fotografija osobe 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Sljedeća godišnjica braka {n} Fotografija osobe 2"
       }
     }
   },
