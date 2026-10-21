@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 from typing import Any
 from urllib.parse import urlparse
 
@@ -112,13 +112,19 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     return errors
 
 
+# Home-network and VPN names; CGNAT is what Tailscale hands out
+LOCAL_SUFFIXES = (".local", ".lan", ".home", ".home.arpa", ".internal", ".localdomain", ".fritz.box", ".ts.net")
+CGNAT = ip_network("100.64.0.0/10")
+
+
 def _is_local_host(host: str | None) -> bool:
     """Plain http is only accepted on the local network: it sends the password unencrypted."""
     if not host:
         return False
     if is_ip_address(host):
-        return is_local(ip_address(host))
-    return "." not in host or host.endswith((".local", ".lan", ".home.arpa", ".internal"))
+        address = ip_address(host)
+        return is_local(address) or address in CGNAT
+    return "." not in host or host.lower().endswith(LOCAL_SUFFIXES)
 
 
 def _unique_id(user_input: dict[str, Any]) -> str:
