@@ -1,30 +1,50 @@
 """The Gramps HA integration."""
 
+import logging
 import os
 import re
+from datetime import timedelta
 
-import logging
-from datetime import timedelta, datetime, date
-from pathlib import Path
-
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers.event import async_track_time_change
-from homeassistant.helpers.storage import Store
+from homeassistant.helpers.device_registry import (
+    DeviceEntryType,
+)
 from homeassistant.helpers.device_registry import (
     async_get as async_get_device_registry,
-    DeviceEntryType,
-    DeviceInfo,
 )
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.components import persistent_notification
+from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .grampsweb_api import KINDS, GrampsWebAPI, GrampsWebAuthError, GrampsWebError, upcoming
-from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER, CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE, ENTITY_LANGUAGE_HA
+from .const import (
+    CONF_ENTITY_LANGUAGE,
+    CONF_NOTIFY_EVENTS,
+    CONF_NOTIFY_MODE,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_URL,
+    CONF_USERNAME,
+    DEFAULT_ENTITY_LANGUAGE,
+    DEFAULT_NOTIFY_EVENTS,
+    DEFAULT_NOTIFY_MODE,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    ENTITY_LANGUAGE_HA,
+    NOTIFY_UNTIL_OVER,
+)
+from .grampsweb_api import (
+    KINDS,
+    GrampsWebAPI,
+    GrampsWebAuthError,
+    GrampsWebError,
+    upcoming,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -116,7 +136,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 class GrampsWebCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Gramps Web data."""
 
-    def __init__(self, hass: HomeAssistant, api, entry: ConfigEntry, scan_interval_hours: int = None) -> None:
+    def __init__(self, hass: HomeAssistant, api, entry: ConfigEntry, scan_interval_hours: int | None = None) -> None:
         """Initialize."""
         if scan_interval_hours is None:
             scan_interval_hours = DEFAULT_SCAN_INTERVAL

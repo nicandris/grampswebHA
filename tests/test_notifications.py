@@ -3,10 +3,14 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 from homeassistant.components import persistent_notification as pn
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
+
+import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 
 DOMAIN = "gramps_ha"
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"

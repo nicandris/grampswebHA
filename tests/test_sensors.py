@@ -3,11 +3,14 @@ from datetime import datetime, timedelta
 from unittest.mock import PropertyMock, patch
 
 import pytest
-
-import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
+
+import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
 DATA = {"url": "https://g.example", "username": "u", "password": "p",
@@ -143,7 +146,9 @@ async def test_days_until_and_order_follow_the_day_without_a_fetch(hass, enable_
 
 async def test_all_birthdays_is_opt_in_and_not_recorded(recorder_mock, hass, enable_custom_integrations):
     from homeassistant.components.recorder.history import get_significant_states
-    from pytest_homeassistant_custom_component.components.recorder.common import async_wait_recording_done
+    from pytest_homeassistant_custom_component.components.recorder.common import (
+        async_wait_recording_done,
+    )
 
     raw = {**EMPTY, "birthdays": [{"person_name": "Ann", "birth_date": "1980-01-01"}]}
     entry = await setup(hass, raw)

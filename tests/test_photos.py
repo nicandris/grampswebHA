@@ -1,10 +1,11 @@
 """Photos come from image entities behind HA's login, not from www/."""
 from unittest.mock import patch
 
-import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
-from custom_components.gramps_ha import _remove_downloaded_photos
 from homeassistant.components.image import async_get_image
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
+from custom_components.gramps_ha import _remove_downloaded_photos
 
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
 DATA = {"url": "https://g.example", "username": "u", "password": "p", "num_birthdays": 1,
