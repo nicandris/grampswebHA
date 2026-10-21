@@ -10,8 +10,11 @@ Fixes from a code review. **Read before updating:**
 
 - **Photos:** photos are image entities now (e.g. `image.birthdays_next_birthday_1_photo`).
   They used to be saved to `www/gramps`, which Home Assistant serves to anyone without a
-  login; those files are deleted on setup. The image sensors keep their IDs, but their state
-  is now the Gramps Web URL, which needs a Gramps login: use the image entities in cards.
+  login; those files are deleted on setup. The image sensors keep their IDs and their entity
+  picture, which now comes from the matching image entity (Home Assistant's login-protected
+  image proxy), so cards that show the sensor's picture keep working. The sensor's *state* is
+  now the Gramps Web URL, which needs a Gramps login: cards that used the state as an image
+  URL should use the entity picture or the image entities.
 - **Empty slots** are `unknown` instead of `Keine Daten` / `999`. Update automations that
   compared with those values.
 - **New installs:** Image and Link sensors and the all-birthdays sensor are disabled by

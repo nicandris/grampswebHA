@@ -84,7 +84,7 @@ For each slot (1 up to the configured number) a set of sensors is created, even 
 3. **Date** (`sensor.birthdays_next_birthday_X_date`) - Birth date (Date type)
 4. **Upcoming Date** (`sensor.birthdays_next_birthday_X_upcoming_date`) - Date of next birthday (Date type)
 5. **Days Until** (`sensor.birthdays_next_birthday_X_days_until`) - Days until birthday, `0` on the day
-6. **Image** (`sensor.birthdays_next_birthday_X_image`) - Gramps Web URL of the profile picture (needs a Gramps login to open)
+6. **Image** (`sensor.birthdays_next_birthday_X_image`) - Gramps Web URL of the profile picture (needs a Gramps login to open); its entity picture is the photo from the matching image entity
 7. **Link** (`sensor.birthdays_next_birthday_X_link`) - Link to the person in Gramps Web
 
 `sensor.gramps_ha_all_upcoming_birthdays` counts the upcoming birthdays; its `birthdays` attribute lists up to 50 of them.
