@@ -97,3 +97,18 @@ async def test_failed_refresh_retries_in_15_minutes(hass, freezer):
         async_fire_time_changed(hass)
         await hass.async_block_till_done()
     assert fetch.called
+
+
+async def test_url_is_stored_without_surrounding_spaces(hass):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    with patch(f"{API}.test_connection"), patch(f"{API}.fetch", return_value=RAW):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "url": " https://gramps.example/ "})
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["url"] == "https://gramps.example/"
+
+
+def test_client_ignores_spaces_in_a_stored_url():
+    from custom_components.gramps_ha.grampsweb_api import GrampsWebAPI
+
+    assert GrampsWebAPI(" https://gramps.example/ ").url == "https://gramps.example"

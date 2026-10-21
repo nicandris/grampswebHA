@@ -150,6 +150,7 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
+            user_input = {**user_input, CONF_URL: user_input.get(CONF_URL, "").strip()}
             errors = _validate(user_input) or await self._test_login(user_input)
             if not errors:
                 await self.async_set_unique_id(_unique_id(user_input))
@@ -203,6 +204,7 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors = {}
         if user_input is not None:
+            user_input = {**user_input, CONF_URL: user_input.get(CONF_URL, "").strip()}
             if not user_input.get(CONF_PASSWORD):
                 user_input = {**user_input, CONF_PASSWORD: entry.data.get(CONF_PASSWORD)}
             errors = _validate(user_input) or await self._test_login(user_input)

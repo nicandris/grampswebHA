@@ -109,6 +109,7 @@ async def test_reconfigure_without_password_keeps_it(hass):
     result = await entry.start_reconfigure_flow(hass)
     data = {k: v for k, v in BASE.items() if k != "password"}
     result = await hass.config_entries.flow.async_configure(result["flow_id"], data)
+    await hass.async_block_till_done()
     assert result["reason"] == "reconfigure_successful"
     assert entry.data["password"] == "p"
 
