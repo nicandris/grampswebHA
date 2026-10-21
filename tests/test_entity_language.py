@@ -119,9 +119,29 @@ async def test_reconfigure_without_password_keeps_it(hass):
     ("http://192.168.1.5:5000", {}),
     ("http://homeassistant.local:5000", {}),
     ("http://gramps", {}),
+    ("http://gramps.fritz.box", {}),
+    ("http://gramps.home", {}),
+    ("http://gramps.localdomain", {}),
+    ("http://gramps.lan", {}),
+    ("http://gramps.internal", {}),
+    ("http://gramps.home.arpa", {}),
+    ("http://GRAMPS.LOCAL", {}),
+    ("http://100.101.102.103", {}),  # Tailscale (CGNAT)
+    ("http://nas.tail1234.ts.net:5000", {}),
+    ("http://100.128.0.1", {"url": "insecure_url"}),  # just outside 100.64.0.0/10
+    ("http://8.8.8.8", {"url": "insecure_url"}),
+    ("http://gramps.home.example.com", {"url": "insecure_url"}),
     ("https://gramps.example.com", {}),
 ])
 async def test_plain_http_only_on_the_local_network(hass, url, error):
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "url": url})
     assert result.get("errors", {}) == error
+
+
+async def test_existing_http_entry_on_a_lan_name_can_be_reconfigured(hass):
+    entry = await setup(hass, {**BASE, "url": "http://gramps.fritz.box:5000"})
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "url": "http://gramps.fritz.box:5000"})
+    await hass.async_block_till_done()
+    assert result["reason"] == "reconfigure_successful"
