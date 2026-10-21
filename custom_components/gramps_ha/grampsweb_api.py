@@ -363,34 +363,6 @@ class GrampsWebAPI:
                 _LOGGER.warning("No people data returned from Gramps Web")
                 return []
 
-            # Diagnostics: check sample people (first 5) for events
-            _LOGGER.info("Running diagnostics on first 5 people...")
-            for idx, person in enumerate(all_people[:5]):
-                name = self._get_person_name(person)
-                handle = person.get("handle")
-                _LOGGER.info(
-                    "Person %s (%s): event_ref_list=%s, birth_ref_index=%s",
-                    idx + 1,
-                    name,
-                    len(person.get("event_ref_list", [])),
-                    person.get("birth_ref_index", -1),
-                )
-
-                # Try fetching detailed info
-                if handle:
-                    try:
-                        detailed = self._get(f"people/{handle}")
-                        detailed_events = detailed.get("event_ref_list", [])
-                        _LOGGER.info(
-                            "  -> After detail fetch: event_ref_list=%s, birth_ref_index=%s",
-                            len(detailed_events),
-                            detailed.get("birth_ref_index", -1),
-                        )
-                        if detailed_events:
-                            _LOGGER.info("  -> First event ref: %s", detailed_events[0])
-                    except Exception as diag_err:
-                        _LOGGER.warning("  -> Could not fetch details: %s", diag_err)
-
             # Filter to only include people with a birth date
             _LOGGER.info("Filtering %s people for birth dates...", len(all_people))
             people_data = []
@@ -417,33 +389,6 @@ class GrampsWebAPI:
 
             today = date.today()
             current_year = today.year
-
-            # Sample first person for debugging
-            if people_data:
-                sample = people_data[0]
-                _LOGGER.debug("Sample person data: %s", sample)
-                _LOGGER.debug(
-                    "Sample birth_ref_index: %s", sample.get("birth_ref_index")
-                )
-                _LOGGER.debug(
-                    "Sample event_ref_list length: %s",
-                    len(sample.get("event_ref_list", [])),
-                )
-                if sample.get("event_ref_list"):
-                    _LOGGER.debug(
-                        "Sample first event: %s", sample.get("event_ref_list")[0]
-                    )
-
-            # Search for specific person: Erdal Akkaya
-            for p in people_data:
-                pname = self._get_person_name(p)
-                if "erdal" in pname.lower() and "akkaya" in pname.lower():
-                    _LOGGER.info("Found Erdal Akkaya:")
-                    _LOGGER.info("  Full data: %s", p)
-                    _LOGGER.info("  birth_ref_index: %s", p.get("birth_ref_index"))
-                    _LOGGER.info("  death_ref_index: %s", p.get("death_ref_index"))
-                    _LOGGER.info("  event_ref_list: %s", p.get("event_ref_list"))
-                    break
 
             for person in people_data:
                 # Get name
@@ -857,49 +802,6 @@ class GrampsWebAPI:
 
             _LOGGER.info("Checking %s people for death dates...", len(all_people))
 
-            # Diagnostics: check sample people (first 5) for death events
-            _LOGGER.info("Running diagnostics on first 5 people for death events...")
-            for idx, person in enumerate(all_people[:5]):
-                name = self._get_person_name(person)
-                death_ref_index = person.get("death_ref_index", -1)
-                event_ref_list = person.get("event_ref_list", [])
-                _LOGGER.info(
-                    "Person %s (%s): death_ref_index=%s, event_ref_list length=%s",
-                    idx + 1,
-                    name,
-                    death_ref_index,
-                    len(event_ref_list),
-                )
-
-                # Log all events to see their types
-                if event_ref_list:
-                    for event_idx, event_ref in enumerate(event_ref_list):
-                        event_handle = (
-                            event_ref.get("ref")
-                            or event_ref.get("handle")
-                            or event_ref.get("hlink")
-                        )
-                        if event_handle:
-                            try:
-                                event = self._get_event(event_handle)
-                                if event:
-                                    event_type = event.get("type", {})
-                                    type_string = (
-                                        event_type.get("string", "")
-                                        if isinstance(event_type, dict)
-                                        else str(event_type)
-                                    )
-                                    _LOGGER.info(
-                                        "  Event %s: type=%s, has date=%s",
-                                        event_idx,
-                                        type_string,
-                                        "date" in event,
-                                    )
-                            except Exception as e:
-                                _LOGGER.debug(
-                                    "Could not fetch event %s: %s", event_handle, e
-                                )
-
             deathdays = []
             candidates = 0
             no_death_ref = 0
@@ -927,13 +829,12 @@ class GrampsWebAPI:
             deathdays.sort(key=lambda x: x.get("days_until", 999))
 
             _LOGGER.info(
-                "Deathdays result: %s total people, %s without death_ref_index, %s candidates with death dates, %s failed calculation, %s entries after success%s",
+                "Deathdays result: %s total people, %s without death_ref_index, %s candidates with death dates, %s failed calculation, %s entries after success",
                 len(all_people),
                 no_death_ref,
                 candidates,
                 failed_calculation,
                 len(deathdays),
-                f" | first: {deathdays[0]}" if deathdays else "",
             )
 
             # Return limited list
@@ -1045,10 +946,9 @@ class GrampsWebAPI:
             anniversaries.sort(key=lambda x: x.get("days_until", 999))
 
             _LOGGER.info(
-                "Anniversaries result: %s marriage events, %s entries after deduplication%s",
+                "Anniversaries result: %s marriage events, %s entries after deduplication",
                 marriage_events,
                 len(anniversaries),
-                f" | first: {anniversaries[0]}" if anniversaries else "",
             )
 
             # Return limited list

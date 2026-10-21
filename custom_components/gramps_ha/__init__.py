@@ -179,9 +179,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
                 self.entry.entry_id
             ] = deceased_birthdays or []
             _LOGGER.debug(
-                "Deceased birthdays fetched: %s entries%s",
+                "Deceased birthdays fetched: %s entries",
                 len(deceased_birthdays) if deceased_birthdays else 0,
-                f" | first: {deceased_birthdays[0]}" if deceased_birthdays else "",
             )
             
             # Fetch deathdays if enabled
@@ -190,9 +189,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
                 deathdays = await self.hass.async_add_executor_job(self.api.get_deathdays)
                 self.hass.data.setdefault(f"{DOMAIN}_deathdays", {})[self.entry.entry_id] = deathdays or []
                 _LOGGER.debug(
-                    "Deathdays fetched: %s entries%s",
+                    "Deathdays fetched: %s entries",
                     len(deathdays) if deathdays else 0,
-                    f" | first: {deathdays[0]}" if deathdays else "",
                 )
             else:
                 _LOGGER.debug("Deathdays disabled in config; skipping fetch")
@@ -202,9 +200,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
                 anniversaries = await self.hass.async_add_executor_job(self.api.get_anniversaries)
                 self.hass.data.setdefault(f"{DOMAIN}_anniversaries", {})[self.entry.entry_id] = anniversaries or []
                 _LOGGER.debug(
-                    "Anniversaries fetched: %s entries%s",
+                    "Anniversaries fetched: %s entries",
                     len(anniversaries) if anniversaries else 0,
-                    f" | first: {anniversaries[0]}" if anniversaries else "",
                 )
             else:
                 _LOGGER.debug("Anniversaries disabled in config; skipping fetch")
