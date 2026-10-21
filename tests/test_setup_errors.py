@@ -74,8 +74,8 @@ async def test_failed_refresh_keeps_last_data(hass):
     entry.add_to_hass(hass)
     with patch(f"{API}.fetch", return_value={**RAW, "birthdays": [{"person_name": "Ann", "birth_date": "1980-01-01"}]}):
         assert await hass.config_entries.async_setup(entry.entry_id)
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     with patch(f"{API}.fetch", side_effect=GrampsWebError("down")):
         await coordinator.async_refresh()
     assert coordinator.last_update_success is False
-    assert coordinator.data[0]["person_name"] == "Ann"
+    assert coordinator.data["birthdays"][0]["person_name"] == "Ann"
