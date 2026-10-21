@@ -22,10 +22,12 @@ from .const import (
     CONF_NUM_BIRTHDAYS,
     CONF_SHOW_ANNIVERSARIES,
     CONF_SHOW_DEATHDAYS,
+    CONF_SHOW_DECEASED_BIRTHDAYS,
     CONF_URL,
     DEFAULT_NUM_BIRTHDAYS,
     DEFAULT_SHOW_ANNIVERSARIES,
     DEFAULT_SHOW_DEATHDAYS,
+    DEFAULT_SHOW_DECEASED_BIRTHDAYS,
     DOMAIN,
 )
 
@@ -80,7 +82,9 @@ _BIRTHDAY = _fields("birth_date", "next_birthday", "age", "mdi:numeric", None, "
 # kind -> (unique_id/translation prefix, device model, enabling option, fields)
 KINDS: dict[str, tuple[str, str, tuple[str, bool] | None, tuple]] = {
     "birthdays": ("birthday", "Birthdays", None, _BIRTHDAY),
-    "deceased_birthdays": ("deceased_birthday", "Deceased Birthdays", None, _BIRTHDAY),
+    "deceased_birthdays": (
+        "deceased_birthday", "Deceased Birthdays", (CONF_SHOW_DECEASED_BIRTHDAYS, DEFAULT_SHOW_DECEASED_BIRTHDAYS), _BIRTHDAY,
+    ),
     "deathdays": (
         "deathday", "Deathdays", (CONF_SHOW_DEATHDAYS, DEFAULT_SHOW_DEATHDAYS),
         _fields("death_date", "next_deathday", "years_ago", "mdi:history", None, "mdi:skull", "mdi:skull",

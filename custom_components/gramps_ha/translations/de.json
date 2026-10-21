@@ -14,7 +14,8 @@
           "scan_interval": "Aktualisierungsintervall (Stunden)",
           "entity_language": "Entitätsnamen",
           "notify_events": "Benachrichtigung am Vortag",
-          "notify_mode": "Dauer der Benachrichtigung"
+          "notify_mode": "Dauer der Benachrichtigung",
+          "show_deceased_birthdays": "Geburtstage Verstorbener anzeigen"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
@@ -26,7 +27,8 @@
           "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
           "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich.",
           "notify_events": "Für welche Ereignisse am Vortag benachrichtigt wird. Leer lassen, um Benachrichtigungen auszuschalten.",
-          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen."
+          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen.",
+          "show_deceased_birthdays": "Auch Sensoren für die Geburtstage verstorbener Personen erstellen."
         }
       },
       "reconfigure": {
@@ -42,7 +44,8 @@
           "scan_interval": "Aktualisierungsintervall (Stunden)",
           "entity_language": "Entitätsnamen",
           "notify_events": "Benachrichtigung am Vortag",
-          "notify_mode": "Dauer der Benachrichtigung"
+          "notify_mode": "Dauer der Benachrichtigung",
+          "show_deceased_birthdays": "Geburtstage Verstorbener anzeigen"
         },
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
@@ -54,7 +57,8 @@
           "scan_interval": "Wie oft neue Daten von Gramps Web abgerufen werden. Standard: 168 (einmal pro Woche).",
           "entity_language": "Sprache der Sensor- und Gerätenamen. Eine Änderung benennt sie um; Entitäts-IDs bleiben gleich.",
           "notify_events": "Für welche Ereignisse am Vortag benachrichtigt wird. Leer lassen, um Benachrichtigungen auszuschalten.",
-          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen."
+          "notify_mode": "Bis zum Schließen behalten oder nach dem Tag automatisch entfernen.",
+          "show_deceased_birthdays": "Auch Sensoren für die Geburtstage verstorbener Personen erstellen."
         }
       },
       "reauth_confirm": {

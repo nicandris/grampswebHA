@@ -14,12 +14,14 @@
           "scan_interval": "Interval ažuriranja (sati)",
           "entity_language": "Nazivi entiteta",
           "notify_events": "Obavijesti dan ranije",
-          "notify_mode": "Trajanje obavijesti"
+          "notify_mode": "Trajanje obavijesti",
+          "show_deceased_birthdays": "Prikaži rođendane preminulih"
         },
         "data_description": {
           "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
-          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
+          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
+          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba."
         }
       },
       "reconfigure": {
@@ -35,12 +37,14 @@
           "scan_interval": "Interval ažuriranja (sati)",
           "entity_language": "Nazivi entiteta",
           "notify_events": "Obavijesti dan ranije",
-          "notify_mode": "Trajanje obavijesti"
+          "notify_mode": "Trajanje obavijesti",
+          "show_deceased_birthdays": "Prikaži rođendane preminulih"
         },
         "data_description": {
           "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
-          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe."
+          "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
+          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba."
         }
       },
       "reauth_confirm": {
