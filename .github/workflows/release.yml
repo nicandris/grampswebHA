@@ -11,9 +11,11 @@ permissions:
 
 jobs:
   release:
+    # a manual run from another branch must not release it
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Create GitHub release from manifest version
         env:
