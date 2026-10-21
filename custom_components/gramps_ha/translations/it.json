@@ -21,7 +21,14 @@
           "entity_language": "Lingua dei nomi di sensori e dispositivi. Cambiarla li rinomina; gli ID delle entità restano invariati.",
           "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
           "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata.",
-          "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute."
+          "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute.",
+          "num_birthdays": "Quanti compleanni imminenti hanno un proprio gruppo di sensori.",
+          "scan_interval": "Ogni quanto recuperare nuovi dati da Gramps Web. Predefinito: 168 (una volta a settimana).",
+          "show_anniversaries": "Crea anche sensori per i prossimi anniversari di matrimonio.",
+          "show_deathdays": "Crea anche sensori per i prossimi anniversari di morte.",
+          "url": "URL di base della tua istanza Gramps Web, ad es. {example_url}",
+          "username": "Un utente Gramps Web. Basta un account in sola lettura con il ruolo Member.",
+          "password": "Password di quell'utente Gramps Web."
         }
       },
       "reconfigure": {
@@ -45,7 +52,13 @@
           "notify_events": "Eventi notificati il giorno prima. Lascia vuoto per disattivare le notifiche.",
           "notify_mode": "Mantienila finché non la chiudi, oppure rimuovila automaticamente a fine giornata.",
           "show_deceased_birthdays": "Crea anche sensori per i compleanni delle persone decedute.",
-          "password": "Lascia vuoto per mantenere la password attuale."
+          "password": "Lascia vuoto per mantenere la password attuale.",
+          "num_birthdays": "Quanti compleanni imminenti hanno un proprio gruppo di sensori.",
+          "scan_interval": "Ogni quanto recuperare nuovi dati da Gramps Web. Predefinito: 168 (una volta a settimana).",
+          "show_anniversaries": "Crea anche sensori per i prossimi anniversari di matrimonio.",
+          "show_deathdays": "Crea anche sensori per i prossimi anniversari di morte.",
+          "url": "URL di base della tua istanza Gramps Web, ad es. {example_url}",
+          "username": "Un utente Gramps Web. Basta un account in sola lettura con il ruolo Member."
         }
       },
       "reauth_confirm": {

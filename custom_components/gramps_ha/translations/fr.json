@@ -21,7 +21,14 @@
           "entity_language": "Langue des noms de capteurs et d'appareils. La modifier les renomme ; les identifiants d'entité restent inchangés.",
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
           "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée.",
-          "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées."
+          "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées.",
+          "num_birthdays": "Nombre d'anniversaires à venir ayant leur propre jeu de capteurs.",
+          "scan_interval": "Fréquence de récupération des données depuis Gramps Web. Par défaut : 168 (une fois par semaine).",
+          "show_anniversaries": "Créer aussi des capteurs pour les prochains anniversaires de mariage.",
+          "show_deathdays": "Créer aussi des capteurs pour les prochains anniversaires de décès.",
+          "url": "URL de base de votre instance Gramps Web, par ex. {example_url}",
+          "username": "Un utilisateur Gramps Web. Un compte en lecture seule avec le rôle Member suffit.",
+          "password": "Mot de passe de cet utilisateur Gramps Web."
         }
       },
       "reconfigure": {
@@ -45,7 +52,13 @@
           "notify_events": "Événements notifiés la veille. Laisser vide pour désactiver les notifications.",
           "notify_mode": "Garder jusqu'à fermeture, ou supprimer automatiquement une fois la journée passée.",
           "show_deceased_birthdays": "Créer aussi des capteurs pour les anniversaires des personnes décédées.",
-          "password": "Laisser vide pour garder le mot de passe actuel."
+          "password": "Laisser vide pour garder le mot de passe actuel.",
+          "num_birthdays": "Nombre d'anniversaires à venir ayant leur propre jeu de capteurs.",
+          "scan_interval": "Fréquence de récupération des données depuis Gramps Web. Par défaut : 168 (une fois par semaine).",
+          "show_anniversaries": "Créer aussi des capteurs pour les prochains anniversaires de mariage.",
+          "show_deathdays": "Créer aussi des capteurs pour les prochains anniversaires de décès.",
+          "url": "URL de base de votre instance Gramps Web, par ex. {example_url}",
+          "username": "Un utilisateur Gramps Web. Un compte en lecture seule avec le rôle Member suffit."
         }
       },
       "reauth_confirm": {
