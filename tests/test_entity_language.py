@@ -18,7 +18,7 @@ BASE = {"url": "https://gramps.example", "username": "u", "password": "p",
 
 @pytest.fixture(autouse=True)
 def _env(enable_custom_integrations, tmp_path):
-    with patch(f"{API}.fetch", return_value=RAW):
+    with patch(f"{API}.fetch", return_value=RAW), patch(f"{API}.test_connection"):
         yield
 
 

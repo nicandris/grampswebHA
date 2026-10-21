@@ -56,16 +56,26 @@
           "notify_events": "Which events get a notification the day before. Leave empty to turn notifications off.",
           "notify_mode": "Keep a notification until you dismiss it, or remove it automatically once the day is over."
         }
+      },
+      "reauth_confirm": {
+        "title": "Log in to Gramps Web again",
+        "description": "Gramps Web at {url} rejected the stored login. Enter the current username and password.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
       }
     },
     "error": {
       "cannot_connect": "Connection failed",
       "invalid_url": "Invalid URL",
-      "unknown": "An unknown error occurred"
+      "unknown": "An unknown error occurred",
+      "invalid_auth": "Gramps Web rejected the username or password"
     },
     "abort": {
       "already_configured": "This Gramps Web instance is already configured",
-      "reconfigure_successful": "Re-configuration was successful"
+      "reconfigure_successful": "Re-configuration was successful",
+      "reauth_successful": "Re-authentication was successful"
     }
   },
   "exceptions": {

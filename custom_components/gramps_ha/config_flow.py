@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -18,6 +19,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
+from .grampsweb_api import GrampsWebAPI, GrampsWebAuthError, GrampsWebError
 from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS, CONF_SHOW_DEATHDAYS, CONF_SHOW_ANNIVERSARIES, DEFAULT_SHOW_DEATHDAYS, DEFAULT_SHOW_ANNIVERSARIES, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE, ENTITY_LANGUAGE_EN, ENTITY_LANGUAGE_HA, CONF_NOTIFY_EVENTS, NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, NOTIFY_UNTIL_DISMISSED, NOTIFY_UNTIL_OVER, DEFAULT_NOTIFY_MODE
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,10 +78,28 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     return errors
 
 
+def _unique_id(user_input: dict[str, Any]) -> str:
+    return f"{user_input[CONF_URL].strip().rstrip('/').lower()}|{user_input[CONF_USERNAME]}"
+
+
 class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Gramps HA."""
 
     VERSION = 1
+
+    async def _test_login(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Form errors from logging in with user_input, empty on success."""
+        api = GrampsWebAPI(
+            user_input[CONF_URL].strip(), user_input.get(CONF_USERNAME), user_input.get(CONF_PASSWORD)
+        )
+        try:
+            await self.hass.async_add_executor_job(api.test_connection)
+        except GrampsWebAuthError:
+            return {"base": "invalid_auth"}
+        except GrampsWebError as err:
+            _LOGGER.debug("Cannot connect to Gramps Web: %s", err)
+            return {"base": "cannot_connect"}
+        return {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -87,8 +107,10 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
-            errors = _validate(user_input)
+            errors = _validate(user_input) or await self._test_login(user_input)
             if not errors:
+                await self.async_set_unique_id(_unique_id(user_input))
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title="Gramps HA",
                     data=user_input
@@ -101,6 +123,36 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders=PLACEHOLDERS,
         )
 
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
+        """Gramps Web rejected the stored credentials."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Ask for the password again."""
+        entry = self._get_reauth_entry()
+        errors = {}
+        if user_input is not None:
+            data = {**entry.data, **user_input}
+            errors = await self._test_login(data)
+            if not errors:
+                return self.async_update_reload_and_abort(entry, data_updates=user_input)
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME, default=entry.data.get(CONF_USERNAME, vol.UNDEFINED)): cv.string,
+                    vol.Required(CONF_PASSWORD): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                    ),
+                }
+            ),
+            errors=errors,
+            description_placeholders={"url": entry.data.get(CONF_URL, "")},
+        )
+
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -108,9 +160,11 @@ class GrampsHAConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors = {}
         if user_input is not None:
-            errors = _validate(user_input)
+            errors = _validate(user_input) or await self._test_login(user_input)
             if not errors:
-                return self.async_update_reload_and_abort(entry, data_updates=user_input)
+                return self.async_update_reload_and_abort(
+                    entry, unique_id=_unique_id(user_input), data_updates=user_input
+                )
 
         return self.async_show_form(
             step_id="reconfigure",

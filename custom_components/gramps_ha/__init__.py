@@ -7,6 +7,7 @@ from pathlib import Path
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.device_registry import (
@@ -19,7 +20,7 @@ from homeassistant.components import persistent_notification
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
-from .grampsweb_api import GrampsWebAPI, GrampsWebError, upcoming
+from .grampsweb_api import GrampsWebAPI, GrampsWebAuthError, GrampsWebError, upcoming
 from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,70 +53,41 @@ def _years(event: dict, date_key: str, origin_key: str) -> int | str:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gramps HA from a config entry."""
-    _LOGGER.info("Setting up Gramps HA integration")
+    url = entry.data.get(CONF_URL)
+    api = GrampsWebAPI(url=url, username=entry.data.get(CONF_USERNAME), password=entry.data.get(CONF_PASSWORD))
+    coordinator = GrampsWebCoordinator(
+        hass, api, entry, scan_interval_hours=entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    )
+    # Raises ConfigEntryNotReady (HA retries) or ConfigEntryAuthFailed (reauth)
+    await coordinator.async_config_entry_first_refresh()
 
-    try:
-        hass.data.setdefault(DOMAIN, {})
+    device = async_get_device_registry(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=entry.title or "Gramps Web",
+        manufacturer="Gramps Web",
+        model="Birthday Tracker",
+        entry_type=DeviceEntryType.SERVICE,
+        configuration_url=url,
+    )
+    coordinator.device_id = device.id  # parent of the per-category devices
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-        url = entry.data.get(CONF_URL)
-        username = entry.data.get(CONF_USERNAME)
-        password = entry.data.get(CONF_PASSWORD)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-        _LOGGER.debug("Gramps Web URL: %s", url)
-        _LOGGER.debug("Username provided: %s", bool(username))
-
-        # Register device in device registry
-        device_registry = async_get_device_registry(hass)
-        device = device_registry.async_get_or_create(
-            config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title or "Gramps Web",
-            manufacturer="Gramps Web",
-            model="Birthday Tracker",
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=url,
-        )
-        _LOGGER.debug("Device registered: %s", device.name)
-
-        api = GrampsWebAPI(url=url, username=username, password=password)
-
-        # Get scan interval from config (in hours), default to DEFAULT_SCAN_INTERVAL
-        scan_interval_hours = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        
-        coordinator = GrampsWebCoordinator(hass, api, entry, scan_interval_hours=scan_interval_hours)
-
-        # Try initial refresh, but don't fail if it doesn't work
-        try:
-            await coordinator.async_config_entry_first_refresh()
-            _LOGGER.info("Initial data fetch successful")
-        except Exception as refresh_err:
-            _LOGGER.warning("Initial data fetch failed (will retry): %s", refresh_err)
-            # Don't fail setup, just log the warning
-
-        coordinator.device_id = device.id  # parent of the per-category devices
-        hass.data[DOMAIN][entry.entry_id] = coordinator
-
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-        # Notifications run daily on the cached lists, not on each (weekly) fetch.
-        # Dismissals are stored: HA forgets notifications on restart, and the
-        # startup check would otherwise bring a dismissed one back.
-        coordinator.dismissed_store = _dismissed_store(hass, entry)
-        coordinator.dismissed = set(await coordinator.dismissed_store.async_load() or [])
-        entry.async_on_unload(
-            persistent_notification.async_register_callback(hass, coordinator.on_notification_update)
-        )
-        await coordinator.async_notify()
-        entry.async_on_unload(
-            async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
-        )
-
-        _LOGGER.info("Gramps HA setup completed successfully")
-        return True
-
-    except Exception as err:
-        _LOGGER.error("Failed to setup Gramps HA: %s", err, exc_info=True)
-        return False
+    # Notifications run daily on the cached lists, not on each (weekly) fetch.
+    # Dismissals are stored: HA forgets notifications on restart, and the
+    # startup check would otherwise bring a dismissed one back.
+    coordinator.dismissed_store = _dismissed_store(hass, entry)
+    coordinator.dismissed = set(await coordinator.dismissed_store.async_load() or [])
+    entry.async_on_unload(
+        persistent_notification.async_register_callback(hass, coordinator.on_notification_update)
+    )
+    await coordinator.async_notify()
+    entry.async_on_unload(
+        async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
+    )
+    return True
 
 
 def _dismissed_store(hass: HomeAssistant, entry: ConfigEntry) -> Store:
@@ -129,16 +101,9 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    try:
-        if unload_ok := await hass.config_entries.async_unload_platforms(
-            entry, PLATFORMS
-        ):
-            hass.data[DOMAIN].pop(entry.entry_id)
-
-        return unload_ok
-    except Exception as err:
-        _LOGGER.error("Failed to unload Gramps HA: %s", err)
-        return False
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unload_ok
 
 
 class GrampsWebCoordinator(DataUpdateCoordinator):
@@ -164,6 +129,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         today = dt_util.now().date()
         try:
             raw = await self.hass.async_add_executor_job(self.api.fetch, today)
+        except GrampsWebAuthError as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
         except GrampsWebError as err:
             raise UpdateFailed(f"Error communicating with Gramps Web: {err}") from err
         lists = {kind: upcoming(kind, entries, today)[:LIST_LIMIT] for kind, entries in raw.items()}
