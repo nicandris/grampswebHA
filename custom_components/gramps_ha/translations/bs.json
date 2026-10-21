@@ -21,7 +21,14 @@
           "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
           "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
-          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba."
+          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba.",
+          "num_birthdays": "Koliko predstojećih rođendana dobija vlastiti skup senzora.",
+          "scan_interval": "Koliko često preuzimati nove podatke iz Gramps Weba. Zadano: 168 (jednom sedmično).",
+          "show_anniversaries": "Napravi i senzore za predstojeće godišnjice braka.",
+          "show_deathdays": "Napravi i senzore za predstojeće godišnjice smrti.",
+          "url": "Osnovni URL vaše Gramps Web instance, npr. {example_url}",
+          "username": "Korisnik Gramps Weba. Dovoljan je račun samo za čitanje s ulogom Member.",
+          "password": "Lozinka tog korisnika Gramps Weba."
         }
       },
       "reconfigure": {
@@ -45,7 +52,13 @@
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
           "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
           "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba.",
-          "password": "Ostavite prazno da zadržite trenutnu lozinku."
+          "password": "Ostavite prazno da zadržite trenutnu lozinku.",
+          "num_birthdays": "Koliko predstojećih rođendana dobija vlastiti skup senzora.",
+          "scan_interval": "Koliko često preuzimati nove podatke iz Gramps Weba. Zadano: 168 (jednom sedmično).",
+          "show_anniversaries": "Napravi i senzore za predstojeće godišnjice braka.",
+          "show_deathdays": "Napravi i senzore za predstojeće godišnjice smrti.",
+          "url": "Osnovni URL vaše Gramps Web instance, npr. {example_url}",
+          "username": "Korisnik Gramps Weba. Dovoljan je račun samo za čitanje s ulogom Member."
         }
       },
       "reauth_confirm": {
