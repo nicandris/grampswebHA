@@ -95,5 +95,5 @@ async def test_every_language_resolves_all_names(hass, lang):
     hass.config.language = lang
     entry = await setup(hass, {**BASE, "entity_language": "ha", "show_deathdays": True, "show_anniversaries": True})
     n = names(hass, entry)
-    assert len(n) == 1 + 7 * 2 + 7 + 8  # all, birthday, deceased, deathday, anniversary
+    assert len(n) == 1 + 7 * 2 + 7 + 8 + 5  # all, birthday, deceased, deathday, anniversary sensors; 5 photos
     assert all(name and "{n}" not in name for _, name in n.values())

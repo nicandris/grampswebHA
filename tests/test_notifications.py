@@ -32,13 +32,22 @@ def lists(offset):
     }
 
 
+STARTED = []
+
+
+def serve(data):
+    patcher = patch(f"{API}.fetch", return_value=data)
+    patcher.start()
+    STARTED.append(patcher)
+    return patcher
+
+
 def shown(hass):
     return {k: (v["title"], v["message"]) for k, v in pn._async_get_or_create_notifications(hass).items()}
 
 
 async def setup(hass, offset=1, **extra):
-    patches = [patch(f"{API}.fetch", return_value=lists(offset))]
-    patches[0].start()
+    patches = [serve(lists(offset))]
     entry = MockConfigEntry(domain=DOMAIN, data={**BASE, **extra}, title="Gramps HA")
     entry.add_to_hass(hass)
     global ENTRY_ID
@@ -53,7 +62,9 @@ async def _env(enable_custom_integrations, freezer, hass):
     await hass.config.async_set_time_zone("Europe/Amsterdam")
     freezer.move_to(dt_util.parse_datetime(START).replace(tzinfo=dt_util.get_time_zone("Europe/Amsterdam")))
     yield
-    patch.stopall()
+    for patcher in STARTED:  # not patch.stopall(): that also stops the plugin's session patches
+        patcher.stop()
+    STARTED.clear()
 
 
 async def midnight(hass, freezer):
@@ -107,7 +118,7 @@ async def test_lifetime(hass, freezer, mode, kept):
 async def test_same_day_birthdays_share_one_notification(hass):
     data = lists(1)
     data["birthdays"].append({"person_name": "Zoe", "birth_date": "2023-03-11"})
-    patch(f"{API}.fetch", return_value=data).start()
+    serve(data)
     entry = MockConfigEntry(domain=DOMAIN, data=BASE, title="Gramps HA")
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -120,7 +131,7 @@ async def test_years_count_to_the_event_day_across_new_year(hass, freezer):
     # Fetched on 28 Dec 2026, but on 1 Jan 2027 it is 37 years since a 1 Jan 1990 death.
     data = lists(1)
     data["deathdays"] = [{"person_name": "Cat", "death_date": "1990-01-01"}]
-    patch(f"{API}.fetch", return_value=data).start()
+    serve(data)
     freezer.move_to(dt_util.parse_datetime("2026-12-28 12:00:00").replace(tzinfo=dt_util.get_time_zone("Europe/Amsterdam")))
     entry = MockConfigEntry(domain=DOMAIN, data={**BASE, "notify_events": ["deathdays"]}, title="Gramps HA")
     entry.add_to_hass(hass)

@@ -218,6 +218,23 @@
       "all_birthdays": {
         "name": "All Upcoming Birthdays"
       }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Next Birthday {n} Photo"
+      },
+      "deceased_birthday_photo": {
+        "name": "Next Deceased Birthday {n} Photo"
+      },
+      "deathday_photo": {
+        "name": "Next Deathday {n} Photo"
+      },
+      "anniversary_photo_person1": {
+        "name": "Next Anniversary {n} Photo Person 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Next Anniversary {n} Photo Person 2"
+      }
     }
   },
   "device": {
