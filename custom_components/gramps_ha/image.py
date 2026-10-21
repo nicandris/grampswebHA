@@ -59,6 +59,8 @@ class GrampsPhoto(GrampsEntity, ImageEntity):
         prefix = KINDS[kind][0]
         self._kind, self._index, self._media_key = kind, index, media_key
         self._media: str | None = None
+        self._data = None  # the coordinator data the cached photo belongs to
+        self._failed = False  # last fetch failed: don't retry or log again until new data
         self._attr_unique_id = f"{entry.entry_id}_{prefix}_{index}_{key}"
         self._attr_name = coordinator.names[f"{prefix}_{key}"].format(n=index + 1)
         self._attr_device_info = kind_device(coordinator, entry, kind)
@@ -67,9 +69,11 @@ class GrampsPhoto(GrampsEntity, ImageEntity):
     def _sync(self) -> None:
         events = self.coordinator.events(self._kind)
         media = events[self._index].get(self._media_key) if self._index < len(events) else None
-        if media != self._media:
-            self._media = media
+        # a refresh may bring a new photo under the same media handle
+        if media != self._media or self.coordinator.data is not self._data:
+            self._media, self._data = media, self.coordinator.data
             self._cached_image = None
+            self._failed = False
             self._attr_image_last_updated = dt_util.utcnow() if media else None
 
     @callback
@@ -78,13 +82,14 @@ class GrampsPhoto(GrampsEntity, ImageEntity):
         super()._handle_coordinator_update()
 
     async def async_image(self) -> bytes | None:
-        if not self._media:
+        if not self._media or self._failed:
             return None
         if self._cached_image is None:
             try:
                 content = await self.hass.async_add_executor_job(self.coordinator.api.get_thumbnail, self._media)
             except GrampsWebError as err:
-                _LOGGER.warning("Could not load photo from Gramps Web: %s", err)
+                self._failed = True
+                _LOGGER.warning("Could not load photo for %s from Gramps Web: %s", self.entity_id, err)
                 return None
             self._cached_image = Image(self._attr_content_type, content)
         return self._cached_image.content
