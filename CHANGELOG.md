@@ -4,6 +4,48 @@ Newest changes first. This is an experimental fork of
 [greewoo/grampswebHA](https://github.com/greewoo/grampswebHA), originally
 [EdgarM73/grampswebHA](https://github.com/EdgarM73/grampswebHA).
 
+## 2026.10.4
+
+Fixes from a code review. **Read before updating:**
+
+- **Photos:** photos are image entities now (e.g. `image.birthdays_next_birthday_1_photo`).
+  They used to be saved to `www/gramps`, which Home Assistant serves to anyone without a
+  login; those files are deleted on setup. The image sensors keep their IDs, but their state
+  is now the Gramps Web URL, which needs a Gramps login: use the image entities in cards.
+- **Empty slots** are `unknown` instead of `Keine Daten` / `999`. Update automations that
+  compared with those values.
+- **New installs:** Image and Link sensors and the all-birthdays sensor are disabled by
+  default. Existing entities keep their setting, IDs and history.
+
+Changes:
+
+- Fixed: birthdays on 29 February made the person disappear in common years; they now fall
+  on 28 February.
+- Fixed: "days until" and the order only changed when data was fetched (weekly by default),
+  so `days_until == 0` never happened. They now update just after midnight, in Home
+  Assistant's time zone.
+- Fixed: deathday and anniversary sensors stayed empty when there were no living birthdays.
+- Fixed: years together/years ago were one short for events after New Year.
+- Fixed: anniversaries counted Banns, Licence and Engagement as weddings, missed the spouse
+  (wrong Gramps field), and continued after a divorce or a partner's death; photos could be
+  in a different order than the names.
+- Fixed: dates marked about/before/after, ranges and estimated dates were shown as exact;
+  other calendars are converted. People over 110 without a recorded death no longer get
+  birthdays.
+- An outage now retries setup (and a failed fetch after 15 minutes) instead of showing empty
+  sensors for a week; a rejected password asks you to log in again (reauthentication).
+  Setup checks the login and refuses the same instance and user twice.
+- Reconfigure no longer shows the stored password; leave it empty to keep it. Plain
+  `http://` is only accepted for local addresses.
+- New option: turn the deceased-birthdays sensors off.
+- Lowering the number of slots or turning a kind off removes the entities it no longer uses.
+- The all-birthdays list is not written to the history database.
+- Fetching uses 3 requests instead of several per person.
+- Removed logging of personal data and of one hard-coded person.
+- Removed debug scripts from the repository root that contained credentials; CI actions
+  are pinned to commit SHAs with read-only permissions.
+- README: correct entity IDs, defaults and required fields.
+
 ## 2026.10.3
 
 - Fixed: a dismissed notification came back after every Home Assistant restart on the day
