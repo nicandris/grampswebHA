@@ -2,11 +2,13 @@
 from unittest.mock import PropertyMock, patch
 
 import pytest
-import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 
 DOMAIN = "gramps_ha"
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
