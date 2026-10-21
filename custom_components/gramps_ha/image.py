@@ -16,7 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS
 from .grampsweb_api import GrampsWebError
-from .sensor import KINDS, GrampsEntity, kind_device
+from .sensor import KINDS, GrampsEntity, kind_device, remove_stale_entities
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,13 +37,15 @@ async def async_setup_entry(
     """Set up one photo entity per person of each event slot."""
     coordinator = entry.runtime_data
     num = entry.data.get(CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS)
-    async_add_entities(
+    photos = [
         GrampsPhoto(coordinator, entry, kind, index, key, media_key)
         for kind, (_, _, option, _) in KINDS.items()
         if option is None or entry.data.get(*option)
         for index in range(num)
         for key, media_key in PHOTOS[kind]
-    )
+    ]
+    remove_stale_entities(hass, entry, "image", photos)
+    async_add_entities(photos)
 
 
 class GrampsPhoto(GrampsEntity, ImageEntity):
