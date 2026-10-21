@@ -10,15 +10,15 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 DOMAIN = "gramps_ha"
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
-BDAY = [{"person_name": "Ann", "birth_date": "1980-01-01", "next_birthday": "2099-01-01", "age": 47, "days_until": 80}]
+RAW = {"birthdays": [{"person_name": "Ann", "birth_date": "1980-01-01"}],
+       "deceased_birthdays": [], "deathdays": [], "anniversaries": []}
 BASE = {"url": "https://gramps.example", "username": "u", "password": "p",
         "num_birthdays": 1, "show_deathdays": False, "show_anniversaries": False, "scan_interval": 168}
 
 
 @pytest.fixture(autouse=True)
 def _env(enable_custom_integrations, tmp_path):
-    with patch(f"{API}.get_birthdays", return_value=BDAY), \
-         patch(f"{API}.get_deceased_birthdays", return_value=[]):
+    with patch(f"{API}.fetch", return_value=RAW):
         yield
 
 

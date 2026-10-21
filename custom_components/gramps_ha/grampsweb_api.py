@@ -1,1608 +1,272 @@
-"""API client for Gramps Web."""
+"""Gramps Web API client and the date logic built on its data.
+
+The client is synchronous (requests) and runs in HA's executor. `fetch()`
+returns events with their original dates only; `upcoming()` turns them into
+next occurrences for a given day, so days and years stay right between fetches.
+"""
+
+from __future__ import annotations
 
 import logging
-from datetime import datetime, date, timedelta
+from datetime import date
+
 import requests
-import hashlib
-import os
 
 _LOGGER = logging.getLogger(__name__)
 
+# Gramps Date fields (gramps/gen/lib/date.py): dateval is (day, month, year, slash, ...)
+MOD_NONE = 0
+CAL_GREGORIAN = 0
+QUAL_NONE = 0
+# sortval is a Julian day number; date.fromordinal(1) is JDN 1721426
+JDN_OFFSET = 1721425
+
+# Gramps' default for "probably alive" (Preferences > Dates)
+MAX_AGE_PROBABLY_ALIVE = 110
+
+DEATH_TYPES = {"Death", "Burial", "Cremation"}
+END_OF_MARRIAGE_TYPES = {"Divorce", "Annulment"}
+
+# kind -> (original date key, next date key, years key)
+KINDS = {
+    "birthdays": ("birth_date", "next_birthday", "age"),
+    "deceased_birthdays": ("birth_date", "next_birthday", "age"),
+    "deathdays": ("death_date", "next_deathday", "years_ago"),
+    "anniversaries": ("marriage_date", "next_anniversary", "years_together"),
+}
+
+
+class GrampsWebError(Exception):
+    """Gramps Web could not be reached or returned an error."""
+
+
+class GrampsWebAuthError(GrampsWebError):
+    """Gramps Web rejected the credentials."""
+
+
+def parse_date(value) -> date | None:
+    """Return the exact calendar date of a Gramps Date dict, else None.
+
+    About/before/after/ranges, estimated or calculated dates and dates
+    without a day or month are not exact, so they yield None.
+    """
+    if not isinstance(value, dict):
+        return None
+    if value.get("modifier", MOD_NONE) != MOD_NONE or value.get("quality", QUAL_NONE) != QUAL_NONE:
+        return None
+    dateval = value.get("dateval") or []
+    if len(dateval) < 3 or not all(isinstance(v, int) for v in dateval[:3]):
+        return None
+    day, month, year = dateval[:3]
+    if not day or not month or not year:
+        return None
+    try:
+        if value.get("calendar", CAL_GREGORIAN) != CAL_GREGORIAN:
+            # dateval is in another calendar; sortval is its Gregorian day
+            return date.fromordinal(int(value["sortval"]) - JDN_OFFSET)
+        return date(year, month, day)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _on_year(origin: date, year: int) -> date:
+    """origin's day and month in year; 29 Feb falls on 28 Feb in common years."""
+    try:
+        return origin.replace(year=year)
+    except ValueError:
+        return origin.replace(year=year, day=28)
+
+
+def next_occurrence(origin: date, today: date) -> date:
+    """The first anniversary of origin on or after today."""
+    this_year = _on_year(origin, today.year)
+    return this_year if this_year >= today else _on_year(origin, today.year + 1)
+
+
+def upcoming(kind: str, entries: list[dict], today: date) -> list[dict]:
+    """Entries with next date, days until and years on that day, soonest first."""
+    origin_key, next_key, years_key = KINDS[kind]
+    result = []
+    for entry in entries:
+        origin = date.fromisoformat(entry[origin_key])
+        nxt = next_occurrence(origin, today)
+        result.append(
+            {
+                **entry,
+                next_key: nxt.isoformat(),
+                "days_until": (nxt - today).days,
+                years_key: nxt.year - origin.year,
+            }
+        )
+    result.sort(key=lambda item: (item["days_until"], item.get("person_name", "")))
+    return result
+
+
+def _type(obj: dict) -> str:
+    value = obj.get("type", "")
+    return value.get("string", "") if isinstance(value, dict) else str(value or "")
+
+
+def person_name(person: dict) -> str:
+    """First name and primary surname."""
+    primary = person.get("primary_name") or {}
+    surnames = primary.get("surname_list") or [{}]
+    name = f"{primary.get('first_name', '')} {surnames[0].get('surname', '')}".strip()
+    return name or "Unknown"
+
+
+def _media_handle(obj: dict) -> str | None:
+    media = obj.get("media_list") or []
+    return media[0].get("ref") if media else None
+
 
 class GrampsWebAPI:
-    """Class to interact with Gramps Web API."""
+    """Talks to one Gramps Web instance."""
 
-    def __init__(
-        self,
-        url: str,
-        username: str = None,
-        password: str = None,
-        hass_config_path: str = None,
-    ):
-        """Initialize the API client."""
+    def __init__(self, url: str, username: str | None = None, password: str | None = None) -> None:
         self.url = url.rstrip("/")
         self.username = username
         self.password = password
-        self.token = None
+        self.token: str | None = None
         self._session = requests.Session()
-        self.hass_config_path = hass_config_path
 
-        # Create images directory
-        if self.hass_config_path:
-            self.images_dir = os.path.join(self.hass_config_path, "www", "gramps")
-            os.makedirs(self.images_dir, exist_ok=True)
-        
-        # Caching: Store fetched data with timestamps
-        self._cache = {
-            "people": None,
-            "people_timestamp": None,
-            "birthdays": None,
-            "birthdays_timestamp": None,
-            "deceased_birthdays": None,
-            "deceased_birthdays_timestamp": None,
-            "deathdays": None,
-            "deathdays_timestamp": None,
-            "anniversaries": None,
-            "anniversaries_timestamp": None,
-        }
-        self._cache_ttl_seconds = 3600  # Cache for 1 hour
-
-    def _authenticate(self):
-        """Authenticate with the Gramps Web API."""
-        if not self.username or not self.password:
-            return True
-
+    def _authenticate(self) -> None:
+        self._session.headers.pop("Authorization", None)
+        self.token = None
+        if not self.username:
+            return
         try:
-            _LOGGER.debug("Authenticating with Gramps Web at %s", self.url)
-
-            # Remove any expired/stale bearer token before authenticating.
-            self._session.headers.pop("Authorization", None)
-
             response = self._session.post(
                 f"{self.url}/api/token/",
-                json={
-                    "username": self.username,
-                    "password": self.password,
-                },
+                json={"username": self.username, "password": self.password},
                 timeout=10,
             )
-            response.raise_for_status()
+        except requests.RequestException as err:
+            raise GrampsWebError(f"Cannot reach Gramps Web: {err}") from err
+        if response.status_code in (401, 403):
+            raise GrampsWebAuthError("Gramps Web rejected the username or password")
+        if not response.ok:
+            raise GrampsWebError(f"Gramps Web login failed: HTTP {response.status_code}")
+        token = response.json().get("access_token")
+        if not token:
+            raise GrampsWebAuthError("Gramps Web returned no access token")
+        self.token = token
+        self._session.headers["Authorization"] = f"Bearer {token}"
 
-            data = response.json()
-            token = data.get("access_token")
-
-            if not token:
-                self.token = None
-                _LOGGER.error(
-                    "Gramps Web authentication succeeded but no access_token "
-                    "was returned"
-                )
-                return False
-
-            self.token = token
-            self._session.headers.update(
-                {"Authorization": f"Bearer {self.token}"}
-            )
-
-            _LOGGER.debug("Successfully authenticated with Gramps Web")
-            return True
-
-        except Exception as err:
-            self.token = None
-            self._session.headers.pop("Authorization", None)
-            _LOGGER.warning(
-                "Failed to authenticate with Gramps Web: %s",
-                err,
-            )
-            return False
-
-    def _invalidate_token(self):
-        """Clear the current authentication token."""
-        self.token = None
-        self._session.headers.pop("Authorization", None)
-
-    def _get(self, endpoint: str, params: dict = None):
-        """Make a GET request to the API.
-
-        If the cached JWT has expired, Gramps Web returns HTTP 401.
-        In that case, authenticate once and retry the request exactly once.
-        """
+    def _request(self, path: str, params: dict | None = None, timeout: int = 60) -> requests.Response:
+        """GET path, logging in first and once more if the token expired."""
         if self.username and not self.token:
-            if not self._authenticate():
-                raise RuntimeError("Failed to authenticate with Gramps Web")
-
+            self._authenticate()
+        url = f"{self.url}/api/{path.lstrip('/')}"
         try:
-            url = f"{self.url}/api/{endpoint.lstrip('/')}"
-            _LOGGER.debug("GET request to: %s", url)
-
-            response = self._session.get(
-                url,
-                params=params,
-                timeout=30,
-            )
-
-            # A token can expire even though self.token still contains it.
-            # Refresh it and retry the failed request once.
+            response = self._session.get(url, params=params, timeout=timeout)
             if response.status_code == 401 and self.username:
-                _LOGGER.info(
-                    "Gramps Web returned 401 for %s; "
-                    "refreshing authentication token and retrying",
-                    endpoint,
-                )
+                self._authenticate()
+                response = self._session.get(url, params=params, timeout=timeout)
+        except requests.RequestException as err:
+            raise GrampsWebError(f"Cannot reach Gramps Web: {err}") from err
+        if response.status_code in (401, 403):
+            raise GrampsWebAuthError(f"Gramps Web denied access to {path}")
+        if not response.ok:
+            raise GrampsWebError(f"Gramps Web returned HTTP {response.status_code} for {path}")
+        return response
 
-                self._invalidate_token()
-
-                if not self._authenticate():
-                    response.raise_for_status()
-
-                response = self._session.get(
-                    url,
-                    params=params,
-                    timeout=30,
-                )
-
-            response.raise_for_status()
-
-            _LOGGER.debug("Response status: %s", response.status_code)
-            return response.json()
-
-        except Exception as err:
-            _LOGGER.error(
-                "API request to %s failed: %s",
-                endpoint,
-                err,
-                exc_info=True,
-            )
-            raise
-
-    def _resolve_event_handle(self, event_ref: dict) -> str | None:
-        """Resolve an event handle from different possible keys."""
-        if not event_ref:
-            return None
-
-        # Gramps may provide the event reference under different keys
-        handle = None
-        for key in ("ref", "handle", "hlink"):
-            candidate = event_ref.get(key)
-            if candidate:
-                handle = candidate
-                break
-
-        if not handle or not isinstance(handle, str):
-            return None
-
-        # If the handle looks like a URL/path, keep only the last segment
-        if "/" in handle:
-            handle = handle.rstrip("/").split("/")[-1]
-
-        return handle
-
-    async def get_event_types(self) -> list[dict]:
-        """Fetch all available event types from Gramps Web."""
+    def _get(self, path: str, params: dict | None = None):
         try:
-            _LOGGER.info("Fetching all event types from Gramps Web...")
-
-            # Try to fetch event types
-            # Gramps Web API endpoint for event types
-            event_types = self._get("event_types")
-
-            if isinstance(event_types, list):
-                _LOGGER.info("Found %s event types", len(event_types))
-                for et in event_types:
-                    _LOGGER.info("  - %s", et)
-                return event_types
-            elif isinstance(event_types, dict):
-                # Sometimes returns dict with 'types' key
-                types_list = event_types.get("types", event_types.get("results", []))
-                _LOGGER.info("Found %s event types", len(types_list))
-                for et in types_list:
-                    _LOGGER.info("  - %s", et)
-                return types_list
-
-            _LOGGER.warning(
-                "Unexpected event types response format: %s", type(event_types)
-            )
-            return []
-
-        except Exception as err:
-            _LOGGER.error("Failed to fetch event types: %s", err)
-            return []
-
-    async def get_all_events(self) -> list[dict]:
-        """Fetch all events (not just birthdays) from Gramps Web."""
-        try:
-            _LOGGER.info("Fetching all events from Gramps Web...")
-
-            events = self._get("events")
-
-            if isinstance(events, dict):
-                results = events.get("results", [])
-                _LOGGER.info("Found %s events", len(results))
-                return results
-            elif isinstance(events, list):
-                _LOGGER.info("Found %s events", len(events))
-                return events
-
-            return []
-
-        except Exception as err:
-            _LOGGER.error("Failed to fetch events: %s", err)
-            return []
-
-        return handle
-
-    def _parse_dateval(self, dateval):
-        """Convert Gramps date structures into a Python date using safe heuristics."""
-        try:
-            # Accept dict structures: {"val": [year, month, day]} or start/end
-            if isinstance(dateval, dict):
-                if "val" in dateval:
-                    dateval = dateval.get("val")
-                elif "start" in dateval:  # sometimes ranges
-                    dateval = dateval.get("start")
-
-            if not isinstance(dateval, (list, tuple)):
-                return None
-
-            # We only need the first three entries for day/month/year
-            vals = list(dateval[:3])
-            if len(vals) < 3:
-                return None
-
-            # Ensure all are integers
-            try:
-                vals = [int(v) for v in vals]
-            except Exception:
-                return None
-
-            # Try combinations with a plausible year (>= 100)
-            combinations = [
-                (2, 1, 0),  # dateval = [day, month, year]
-                (0, 1, 2),  # dateval = [year, month, day]
-                (0, 2, 1),  # dateval = [year, day, month]
-            ]
-
-            for y_idx, m_idx, d_idx in combinations:
-                year, month, day = vals[y_idx], vals[m_idx], vals[d_idx]
-                if year < 100:
-                    continue
-                if not (1 <= month <= 12 and 1 <= day <= 31):
-                    continue
-                return date(year, month, day)
-
-            return None
-        except Exception:
-            return None
-
-    def _ensure_person_events(self, person: dict) -> dict:
-        """Ensure a person dict has event_ref_list by refetching details if needed."""
-        try:
-            event_ref_list = person.get("event_ref_list", []) or []
-            birth_ref_index = person.get("birth_ref_index", -1)
-
-            # If we already have events and a birth ref index, keep as is
-            if event_ref_list:
-                return person
-
-            handle = person.get("handle")
-            if not handle:
-                return person
-
-            try:
-                detailed = self._get(f"people/{handle}")
-                # Only update the minimal fields we care about
-                if detailed:
-                    person["event_ref_list"] = detailed.get(
-                        "event_ref_list", event_ref_list
-                    )
-                    person["birth_ref_index"] = detailed.get(
-                        "birth_ref_index", birth_ref_index
-                    )
-                    person["death_ref_index"] = detailed.get(
-                        "death_ref_index", person.get("death_ref_index", -1)
-                    )
-            except Exception as err:
-                _LOGGER.debug("Could not fetch detailed person %s: %s", handle, err)
-
-            return person
-        except Exception:
-            return person
-
-    def _is_cache_valid(self, cache_key: str) -> bool:
-        """Check if cached data is still valid."""
-        timestamp_key = f"{cache_key}_timestamp"
-        if self._cache[cache_key] is None or self._cache[timestamp_key] is None:
-            return False
-        
-        age = datetime.now() - self._cache[timestamp_key]
-        return age.total_seconds() < self._cache_ttl_seconds
-
-    def get_people(self):
-        """Get all people from Gramps Web with caching."""
-        # Check cache first
-        if self._is_cache_valid("people"):
-            _LOGGER.debug("Returning cached people data")
-            return self._cache["people"]
-        
-        _LOGGER.debug("Fetching people from %s (cache miss)", self.url)
-        try:
-            result = self._get("people/")
-            _LOGGER.debug("API response type: %s", type(result))
-            
-            # Update cache
-            self._cache["people"] = result
-            self._cache["people_timestamp"] = datetime.now()
-            
-            return result
-        except Exception as err:
-            _LOGGER.error("Failed to get people: %s", err, exc_info=True)
-            raise
-
-    def get_birthdays(self, limit: int = 50):
-        """Get upcoming birthdays from Gramps Web with caching."""
-        # Check cache first
-        if self._is_cache_valid("birthdays"):
-            _LOGGER.debug("Returning cached birthdays data")
-            return self._cache["birthdays"]
-        
-        try:
-            _LOGGER.info("Fetching birthdays from Gramps Web API (cache miss)")
-
-            # Get all people
-            try:
-                all_people = self.get_people()
-                _LOGGER.info(
-                    "Fetched %s people from Gramps Web",
-                    len(all_people) if isinstance(all_people, list) else "unknown",
-                )
-            except Exception as people_err:
-                _LOGGER.error("Failed to fetch people: %s", people_err, exc_info=True)
-                return []
-
-            if not all_people:
-                _LOGGER.warning("No people data returned from Gramps Web")
-                return []
-
-            # Filter to only include people with a birth date
-            _LOGGER.info("Filtering %s people for birth dates...", len(all_people))
-            people_data = []
-            for idx, person in enumerate(all_people):
-                if idx % 50 == 0:
-                    _LOGGER.debug("Processed %s/%s people...", idx, len(all_people))
-                person = self._ensure_person_events(person)
-                if self._has_birth_date(person):
-                    people_data.append(person)
-            _LOGGER.info(
-                "Filtered to %s people with birth dates (from %s total)",
-                len(people_data),
-                len(all_people),
-            )
-
-            if not people_data:
-                _LOGGER.warning("No people with birth dates found")
-                return []
-
-            birthdays = []
-            people_with_birth = 0
-            living_people = 0
-            deceased_people = 0
-
-            today = date.today()
-            current_year = today.year
-
-            for person in people_data:
-                # Get name
-                name = self._get_person_name(person)
-
-                # Get birth event
-                birth_date = self._extract_birth_date(person)
-                if not birth_date:
-                    # Should not happen since we pre-filtered, but handle it
-                    continue
-
-                people_with_birth += 1
-
-                # Check if person is still alive
-                is_alive = self._is_person_alive(person)
-
-                if is_alive:
-                    living_people += 1
-                else:
-                    deceased_people += 1
-                    _LOGGER.debug("Skipping deceased person: %s", name)
-                    continue
-
-                # Calculate next birthday (pass person data for image)
-                next_birthday_info = self._calculate_next_birthday(
-                    birth_date, name, person
-                )
-
-                if next_birthday_info:
-                    birthdays.append(next_birthday_info)
-
-            _LOGGER.info(
-                "Summary - Total with birth date: %s, Living: %s, Deceased: %s",
-                people_with_birth,
-                living_people,
-                deceased_people,
-            )
-            _LOGGER.info("Found %s birthdays from living people", len(birthdays))
-
-            # Sort by days until birthday
-            birthdays.sort(key=lambda x: x["days_until"])
-
-            result = birthdays[:limit]
-            
-            # Update cache
-            self._cache["birthdays"] = result
-            self._cache["birthdays_timestamp"] = datetime.now()
-            
-            return result
-
-        except Exception as err:
-            _LOGGER.error("Failed to fetch birthdays: %s", err, exc_info=True)
-            return []
-
-    def _has_birth_date(self, person: dict) -> bool:
-        """Check if person has a birth date set."""
-        try:
-            person = self._ensure_person_events(person)
-            # Check birth_ref_index
-            birth_ref_index = person.get("birth_ref_index", -1)
-            event_ref_list = person.get("event_ref_list", [])
-
-            # If birth_ref_index is valid, we have a birth date
-            if birth_ref_index >= 0 and birth_ref_index < len(event_ref_list):
-                event_handle = self._resolve_event_handle(
-                    event_ref_list[birth_ref_index]
-                )
-                if event_handle:
-                    parsed = self._fetch_event_date(event_handle)
-                    if parsed:
-                        return True
-
-            # Otherwise, check if there's a birth event in the list
-            for event_ref in event_ref_list:
-                event_handle = self._resolve_event_handle(event_ref)
-                if not event_handle:
-                    continue
-                try:
-                    parsed = self._fetch_event_date(event_handle)
-                    if parsed:
-                        return True
-                except Exception:
-                    continue
-
-            return False
-
-        except Exception as err:
-            _LOGGER.debug("Error checking birth date: %s", err)
-            return False
-
-    def _extract_birth_date(self, person: dict):
-        """Extract birth date from person data."""
-        try:
-            person = self._ensure_person_events(person)
-            birth_ref_index = person.get("birth_ref_index", -1)
-            event_ref_list = person.get("event_ref_list", [])
-
-            # If birth_ref_index is valid, try that reference first
-            if birth_ref_index >= 0 and birth_ref_index < len(event_ref_list):
-                event_handle = self._resolve_event_handle(
-                    event_ref_list[birth_ref_index]
-                )
-                if event_handle:
-                    parsed = self._fetch_event_date(event_handle, require_birth=True)
-                    if parsed:
-                        return parsed
-
-            # Otherwise, scan all events for a birth event
-            for event_ref in event_ref_list:
-                event_handle = self._resolve_event_handle(event_ref)
-                if not event_handle:
-                    continue
-                try:
-                    parsed = self._fetch_event_date(event_handle, require_birth=True)
-                    if parsed:
-                        return parsed
-                except Exception as event_err:
-                    _LOGGER.debug(
-                        "Could not fetch event %s: %s", event_handle, event_err
-                    )
-                    continue
-
-            return None
-
-        except Exception as err:
-            _LOGGER.debug("Could not extract birth date: %s", err)
-            return None
-
-    def _fetch_event_date(self, event_handle: str, require_birth: bool = False):
-        """Fetch and parse an event date, optionally requiring a birth event."""
-        try:
-            if not event_handle:
-                return None
-
-            # Clean up handle if it's a path-like string
-            handle = event_handle
-            if "/" in handle:
-                handle = handle.rstrip("/").split("/")[-1]
-
-            event_data = self._get(f"events/{handle}")
-
-            if require_birth:
-                event_type = event_data.get("type", {})
-                type_string = (
-                    event_type.get("string", "")
-                    if isinstance(event_type, dict)
-                    else str(event_type)
-                )
-                if "birth" not in type_string.lower():
-                    return None
-
-            date_info = event_data.get("date", {})
-            parsed = self._parse_dateval(date_info.get("dateval", []))
-            if parsed:
-                _LOGGER.debug("Parsed event date: %s", parsed)
-                return parsed
-
-            return None
-        except Exception as err:
-            _LOGGER.debug("Could not fetch event date: %s", err)
-            return None
-
-    def _is_person_alive(self, person: dict) -> bool:
-        """Check if person is still alive (no death date)."""
-        try:
-            # Check death_ref_index
-            death_ref_index = person.get("death_ref_index", -1)
-
-            if death_ref_index == -1:
-                # No death event, person is alive
-                return True
-
-            # Person has a death event, they are deceased
-            _LOGGER.debug("Person has death_ref_index: %s", death_ref_index)
-            return False
-
-        except Exception as err:
-            _LOGGER.debug("Could not determine if person is alive: %s", err)
-            # If we can't determine, assume person is alive
-            return True
-
-    def _parse_gramps_date(self, date_str: str):
-        """Parse Gramps date format to Python date."""
-        try:
-            # Gramps can have various date formats
-            # Common format: "1990-01-15" or "15 Jan 1990"
-            if "-" in date_str and len(date_str) == 10:
-                return datetime.strptime(date_str, "%Y-%m-%d").date()
-            # Add more parsing logic as needed
-            return None
-        except Exception:
-            return None
-
-    def _get_person_name(self, person: dict):
-        """Get person's display name."""
-        try:
-            primary_name = person.get("primary_name", {})
-            first_name = primary_name.get("first_name", "")
-
-            # Get surname from surname_list
-            surname_list = primary_name.get("surname_list", [])
-            surname = ""
-            if surname_list:
-                surname = surname_list[0].get("surname", "")
-
-            full_name = f"{first_name} {surname}".strip()
-            return full_name if full_name else "Unknown"
-        except Exception:
-            return "Unknown"
-
-    def _get_person_image_url(self, person: dict) -> str | None:
-        """Get the URL for a person's profile image."""
-        try:
-            # Get person handle
-            person_handle = person.get("handle", "")
-            if not person_handle:
-                _LOGGER.debug("No person handle found")
-                return None
-
-            # Check media_list for images
-            media_list = person.get("media_list", [])
-            if not media_list:
-                _LOGGER.debug("No media_list for person %s", person_handle)
-                return None
-
-            # Get first media reference
-            media_ref = media_list[0]
-            media_handle = None
-
-            # Extract media handle from various possible keys
-            for key in ("ref", "handle", "hlink"):
-                candidate = media_ref.get(key)
-                if candidate:
-                    media_handle = candidate
-                    break
-
-            if not media_handle:
-                _LOGGER.debug("Could not extract media handle from: %s", media_ref)
-                return None
-
-            # Clean handle if it's a path
-            if "/" in media_handle:
-                media_handle = media_handle.rstrip("/").split("/")[-1]
-
-            # Construct thumbnail URL
-            thumbnail_url = f"{self.url}/api/media/{media_handle}/thumbnail/200"
-
-            # Download and save image locally
-            if self.hass_config_path:
-                return self._download_image(thumbnail_url, person_handle, media_handle)
-
-            # Fallback to remote URL
-            _LOGGER.debug("Image URL for person: %s", thumbnail_url)
-            return thumbnail_url
-
-        except Exception as err:
-            _LOGGER.debug("Could not get person image: %s", err)
-            return None
-
-    def _download_image(
-        self, image_url: str, person_handle: str, media_handle: str
-    ) -> str | None:
-        """Download image and return local path."""
-        try:
-            # Create filename from handles
-            filename_hash = hashlib.md5(
-                f"{person_handle}_{media_handle}".encode()
-            ).hexdigest()
-            filename = f"{filename_hash}.jpg"
-            filepath = os.path.join(self.images_dir, filename)
-
-            # Check if already downloaded
-            if os.path.exists(filepath):
-                _LOGGER.debug("Image already cached: %s", filepath)
-                return f"/local/gramps/{filename}"
-
-            # Download image
-            _LOGGER.debug("Downloading image from: %s", image_url)
-            response = self._session.get(image_url, timeout=10)
-
-            # Image endpoints are authenticated too. If the JWT expired,
-            # refresh it and retry the image request once.
-            if response.status_code == 401 and self.username:
-                _LOGGER.info(
-                    "Gramps Web returned 401 while downloading image; "
-                    "refreshing authentication token"
-                )
-
-                self._invalidate_token()
-
-                if not self._authenticate():
-                    response.raise_for_status()
-
-                response = self._session.get(image_url, timeout=10)
-
-            response.raise_for_status()
-
-            # Save to file
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-
-            _LOGGER.info("Downloaded image to: %s", filepath)
-            return f"/local/gramps/{filename}"
-
-        except Exception as err:
-            _LOGGER.warning("Failed to download image: %s", err)
-            return image_url  # Fallback to remote URL
-
-    def _calculate_next_birthday(
-        self, birth_date: date, name: str, person: dict = None
-    ):
-        """Calculate next birthday occurrence."""
-        try:
-            today = date.today()
-            current_year = today.year
-
-            # Calculate this year's birthday
-            this_year_birthday = birth_date.replace(year=current_year)
-
-            # If birthday already passed this year, use next year
-            if this_year_birthday < today:
-                next_birthday = birth_date.replace(year=current_year + 1)
-            else:
-                next_birthday = this_year_birthday
-
-            days_until = (next_birthday - today).days
-            age = next_birthday.year - birth_date.year
-
-            # Get image URL and handle if person data is provided
-            image_url = None
-            person_handle = None
-            if person:
-                image_url = self._get_person_image_url(person)
-                person_handle = person.get("handle")
-
-            result = {
-                "person_name": name,
-                "birth_date": birth_date.isoformat(),
-                "next_birthday": next_birthday.isoformat(),
-                "age": age,
-                "days_until": days_until,
-            }
-
-            if image_url:
-                result["image_url"] = image_url
-            if person_handle:
-                result["person_handle"] = person_handle
-
-            return result
-
-        except Exception as err:
-            _LOGGER.debug("Could not calculate birthday for %s: %s", name, err)
-            return None
-
-    def get_deceased_birthdays(self, limit: int = 50):
-        """Get upcoming birthdays for people who have passed away."""
-        if self._is_cache_valid("deceased_birthdays"):
-            _LOGGER.debug("Returning cached deceased birthdays data")
-            return self._cache["deceased_birthdays"]
-
-        try:
-            _LOGGER.info("Fetching birthdays of deceased people from Gramps Web API")
-            all_people = self.get_people()
-            if not isinstance(all_people, list):
-                _LOGGER.warning("Unexpected people response while fetching deceased birthdays")
-                return []
-
-            deceased_birthdays = []
-            for person in all_people:
-                person = self._ensure_person_events(person)
-                if self._is_person_alive(person):
-                    continue
-
-                birth_date = self._extract_birth_date(person)
-                if not birth_date:
-                    continue
-
-                name = self._get_person_name(person)
-                birthday = self._calculate_next_birthday(birth_date, name, person)
-                if birthday:
-                    deceased_birthdays.append(birthday)
-
-            deceased_birthdays.sort(key=lambda x: x["days_until"])
-            result = deceased_birthdays[:limit]
-
-            self._cache["deceased_birthdays"] = result
-            self._cache["deceased_birthdays_timestamp"] = datetime.now()
-            _LOGGER.info("Found %s birthdays for deceased people", len(result))
-            return result
-
-        except Exception as err:
-            _LOGGER.error("Failed to fetch deceased birthdays: %s", err, exc_info=True)
-            return []
-
-    def get_deathdays(self, limit: int = 50):
-        """Get upcoming deathdays/memorial dates from Gramps Web with caching."""
-        # Check cache first
-        if self._is_cache_valid("deathdays"):
-            _LOGGER.debug("Returning cached deathdays data")
-            return self._cache["deathdays"]
-        
-        try:
-            _LOGGER.info("Fetching deathdays from Gramps Web API (cache miss)")
-
-            all_people = self.get_people()
-            if not isinstance(all_people, list):
-                _LOGGER.warning(
-                    "Unexpected response type for people: %s", type(all_people)
-                )
-                return []
-
-            _LOGGER.info("Checking %s people for death dates...", len(all_people))
-
-            deathdays = []
-            candidates = 0
-            no_death_ref = 0
-            failed_calculation = 0
-
-            for idx, person in enumerate(all_people):
-                if idx % 50 == 0:
-                    _LOGGER.debug(
-                        "Processed %s/%s people for deathdays...", idx, len(all_people)
-                    )
-
-                self._ensure_person_events(person)
-
-                if self._has_death_date(person):
-                    candidates += 1
-                    deathday = self._calculate_next_deathday(person)
-                    if deathday:
-                        deathdays.append(deathday)
-                    else:
-                        failed_calculation += 1
-                else:
-                    no_death_ref += 1
-
-            # Sort by days until deathday
-            deathdays.sort(key=lambda x: x.get("days_until", 999))
-
-            _LOGGER.info(
-                "Deathdays result: %s total people, %s without death_ref_index, %s candidates with death dates, %s failed calculation, %s entries after success",
-                len(all_people),
-                no_death_ref,
-                candidates,
-                failed_calculation,
-                len(deathdays),
-            )
-
-            # Return limited list
-            result = deathdays[:limit]
-            
-            # Update cache
-            self._cache["deathdays"] = result
-            self._cache["deathdays_timestamp"] = datetime.now()
-            
-            return result
-
-        except Exception as err:
-            _LOGGER.error("Failed to get deathdays: %s", err, exc_info=True)
-            return []
-
-    def get_anniversaries(self, limit: int = 50):
-        """Get upcoming anniversaries from Gramps Web with caching."""
-        # Check cache first
-        if self._is_cache_valid("anniversaries"):
-            _LOGGER.debug("Returning cached anniversaries data")
-            return self._cache["anniversaries"]
-        
-        try:
-            _LOGGER.info("Fetching anniversaries from Gramps Web API (cache miss)")
-
-            all_people = self.get_people()
-            if not isinstance(all_people, list):
-                _LOGGER.warning(
-                    "Unexpected response type for people: %s", type(all_people)
-                )
-                return []
-
-            # First pass: collect all anniversaries with event handles
-            anniversaries_with_events = {}  # key: (marriage_date, event_handle)
-            person_by_handle = {}  # key: person_handle, value: person_obj
-            marriage_events = 0
-
-            for person in all_people:
-                self._ensure_person_events(person)
-                person_handle = person.get("handle", "")
-                person_name = self._get_person_name(person)
-                person_by_handle[person_handle] = person
-
-                # Look for marriage events
-                marriage_dates = self._get_marriage_dates(person)
-                marriage_events += len(marriage_dates)
-                for spouse_name, marriage_date, event_handle, family_handle in marriage_dates:
-                    key = (str(marriage_date), event_handle)
-                    
-                    if key not in anniversaries_with_events:
-                        anniversaries_with_events[key] = {
-                            "person_names": set(),
-                            "person_handles": [],
-                            "marriage_date": marriage_date,
-                            "event_handle": event_handle,
-                            "spouse_name": spouse_name,
-                            "family_handle": family_handle,
-                        }
-                    
-                    anniversaries_with_events[key]["person_names"].add(person_name)
-                    if person_handle not in anniversaries_with_events[key]["person_handles"]:
-                        anniversaries_with_events[key]["person_handles"].append(person_handle)
-
-            # Second pass: create anniversary entries and find partners
-            anniversaries = []
-            seen_events = set()
-            
-            for (date_str, event_handle), data in anniversaries_with_events.items():
-                # Skip if we already processed this event
-                if event_handle in seen_events:
-                    continue
-                seen_events.add(event_handle)
-                
-                # Get the list of people for this event
-                person_names = sorted(data["person_names"])
-                person_handles = data.get("person_handles", [])
-                marriage_date = data["marriage_date"]
-                family_handle = data.get("family_handle")
-                
-                # Create anniversary entry
-                if len(person_names) >= 2:
-                    # We have both partners, combine them
-                    combined_name = " & ".join(person_names[:2])
-                    person1_handle = person_handles[0] if len(person_handles) > 0 else None
-                    person2_handle = person_handles[1] if len(person_handles) > 1 else None
-                else:
-                    # We only have one person, use the spouse name if available
-                    combined_name = f"{person_names[0]}"
-                    if data["spouse_name"]:
-                        combined_name = f"{person_names[0]} & {data['spouse_name']}"
-                    person1_handle = person_handles[0] if len(person_handles) > 0 else None
-                    person2_handle = None
-                
-                anniversary = self._calculate_anniversary(
-                    combined_name.split(" & ")[0],
-                    combined_name.split(" & ")[1] if " & " in combined_name else data["spouse_name"] or "Unknown",
-                    marriage_date,
-                    family_handle,
-                    person1_handle,
-                    person2_handle,
-                    person_by_handle
-                )
-                if anniversary:
-                    # Update the person_name to the combined version
-                    anniversary["person_name"] = combined_name
-                    anniversaries.append(anniversary)
-
-            # Sort by days until anniversary
-            anniversaries.sort(key=lambda x: x.get("days_until", 999))
-
-            _LOGGER.info(
-                "Anniversaries result: %s marriage events, %s entries after deduplication",
-                marriage_events,
-                len(anniversaries),
-            )
-
-            # Return limited list
-            result = anniversaries[:limit]
-            
-            # Update cache
-            self._cache["anniversaries"] = result
-            self._cache["anniversaries_timestamp"] = datetime.now()
-            
-            return result
-
-        except Exception as err:
-            _LOGGER.error("Failed to get anniversaries: %s", err, exc_info=True)
-            return []
-
-    def _has_death_date(self, person: dict) -> bool:
-        """Check if person has a death date."""
-        try:
-            person_name = self._get_person_name(person)
-            death_ref_index = person.get("death_ref_index", -1)
-
-            if death_ref_index < 0:
-                _LOGGER.debug(
-                    "Person %s: no death_ref_index (value: %s)",
-                    person_name,
-                    death_ref_index,
-                )
-                return False
-
-            event_ref_list = person.get("event_ref_list", [])
-            if death_ref_index >= len(event_ref_list):
-                _LOGGER.debug(
-                    "Person %s: death_ref_index %s out of range (event_ref_list length: %s)",
-                    person_name,
-                    death_ref_index,
-                    len(event_ref_list),
-                )
-                return False
-
-            death_ref = event_ref_list[death_ref_index]
-            handle = (
-                death_ref.get("ref")
-                or death_ref.get("handle")
-                or death_ref.get("hlink")
-            )
-
-            if not handle:
-                _LOGGER.debug("Person %s: no handle in death_ref", person_name)
-                return False
-
-            event = self._get_event(handle)
-            if not event:
-                _LOGGER.debug(
-                    "Person %s: could not fetch event with handle %s",
-                    person_name,
-                    handle,
-                )
-                return False
-
-            # Verify this is actually a Death event
-            event_type = event.get("type", {})
-            type_string = (
-                event_type.get("string", "")
-                if isinstance(event_type, dict)
-                else str(event_type)
-            )
-            if "death" not in type_string.lower():
-                _LOGGER.debug(
-                    "Person %s: event type is '%s', not Death", person_name, type_string
-                )
-                return False
-
-            dateval = event.get("date", {})
-            raw_dateval = None
-            if isinstance(dateval, dict):
-                raw_dateval = (
-                    dateval.get("dateval") or dateval.get("val") or dateval.get("start")
-                )
-            else:
-                raw_dateval = dateval
-
-            parsed = self._parse_dateval(raw_dateval)
-
-            if not parsed:
-                _LOGGER.debug(
-                    "Person %s: could not parse death date from %s (raw=%s)",
-                    person_name,
-                    dateval,
-                    raw_dateval,
-                )
-                return False
-
-            _LOGGER.debug(
-                "Person %s: has death date %s (event type: %s)",
-                person_name,
-                parsed,
-                type_string,
-            )
-            return bool(parsed)
-
-        except Exception as err:
-            _LOGGER.debug(
-                "Error checking death date for %s: %s",
-                person.get("handle", "unknown"),
-                err,
-            )
-            return False
-
-    def _get_marriage_dates(self, person: dict) -> list:
-        """Get all marriage/engagement dates for a person.
-
-        Returns a list of 4-tuples:
-
-            (spouse_name, marriage_date, event_handle, family_handle)
-
-        where:
-            spouse_name   = name of the spouse, or None if unknown
-            marriage_date = parsed Python date
-            event_handle  = Gramps event handle
-            family_handle = Gramps family handle, or None if unavailable
-
-        The function deliberately guarantees that every returned tuple has
-        exactly four elements. This is important because get_anniversaries()
-        unpacks the result into four variables.
+            return self._request(path, params).json()
+        except ValueError as err:
+            raise GrampsWebError(f"Gramps Web returned invalid JSON for {path}") from err
+
+    def test_connection(self) -> None:
+        """Raise GrampsWebAuthError/GrampsWebError unless the tree can be read."""
+        self._get("people/", {"page": 1, "pagesize": 1})
+
+    def get_thumbnail(self, media_handle: str) -> bytes:
+        """A person's photo thumbnail."""
+        return self._request(f"media/{media_handle}/thumbnail/200", timeout=10).content
+
+    def thumbnail_url(self, media_handle: str | None) -> str | None:
+        """Gramps Web URL of a thumbnail (needs a Gramps login to open)."""
+        return f"{self.url}/api/media/{media_handle}/thumbnail/200" if media_handle else None
+
+    def fetch(self, today: date) -> dict[str, list[dict]]:
+        """All events with their original dates, per kind.
+
+        Three requests per refresh: list endpoints return every object when no
+        page is given, so nothing is fetched per person.
         """
-        marriage_dates = []
-
-        try:
-            person_handle = person.get("handle", "")
-            event_ref_list = person.get("event_ref_list", []) or []
-            families = person.get("family_list", []) or []
-
-            # ------------------------------------------------------------------
-            # Helper: extract a handle from the different formats Gramps Web
-            # may return.
-            # ------------------------------------------------------------------
-            def extract_handle(value):
-                if isinstance(value, dict):
-                    value = (
-                        value.get("ref")
-                        or value.get("handle")
-                        or value.get("hlink")
-                    )
-
-                if not value or not isinstance(value, str):
-                    return None
-
-                # Handle values can occasionally be returned as paths/URLs.
-                if "/" in value:
-                    value = value.rstrip("/").split("/")[-1]
-
-                return value
-
-            # ------------------------------------------------------------------
-            # Helper: determine whether an event is a marriage/engagement event.
-            # ------------------------------------------------------------------
-            def is_marriage_event(event):
-                if not isinstance(event, dict):
-                    return False
-
-                event_type = event.get("type", {})
-
-                if isinstance(event_type, dict):
-                    type_string = (
-                        event_type.get("string")
-                        or event_type.get("name")
-                        or event_type.get("value")
-                        or ""
-                    )
-                else:
-                    type_string = str(event_type or "")
-
-                type_string = type_string.lower()
-
-                return (
-                    "marriage" in type_string
-                    or "engagement" in type_string
-                )
-
-            # ------------------------------------------------------------------
-            # Helper: extract and parse the date from a Gramps event.
-            # ------------------------------------------------------------------
-            def get_event_date(event):
-                if not isinstance(event, dict):
-                    return None
-
-                date_info = event.get("date", {})
-
-                if isinstance(date_info, dict):
-                    raw_dateval = (
-                        date_info.get("dateval")
-                        or date_info.get("val")
-                        or date_info.get("start")
-                    )
-                else:
-                    raw_dateval = date_info
-
-                if not raw_dateval:
-                    return None
-
-                return self._parse_dateval(raw_dateval)
-
-            # ------------------------------------------------------------------
-            # Cache spouse names while processing this person. A person can
-            # occur in more than one family/event.
-            # ------------------------------------------------------------------
-            spouse_name_cache = {}
-
-            def get_person_name_from_handle(handle):
-                handle = extract_handle(handle)
-
-                if not handle:
-                    return None
-
-                if handle in spouse_name_cache:
-                    return spouse_name_cache[handle]
-
-                try:
-                    spouse_person = self._get(f"people/{handle}")
-
-                    if spouse_person:
-                        name = self._get_person_name(spouse_person)
-                    else:
-                        name = None
-
-                except Exception as err:
-                    _LOGGER.debug(
-                        "Could not fetch spouse %s: %s",
-                        handle,
-                        err,
-                    )
-                    name = None
-
-                spouse_name_cache[handle] = name
-                return name
-
-            # ------------------------------------------------------------------
-            # First process the person's family_list.
-            #
-            # In Gramps Web, family_list may contain either:
-            #   * strings containing family handles
-            #   * dictionaries containing ref/handle/hlink
-            #
-            # Each family can provide:
-            #   * parent_rel_list -> the partners
-            #   * event_ref_list  -> marriage/engagement events
-            # ------------------------------------------------------------------
-            family_handles = []
-
-            for family_ref in families:
-                family_handle = extract_handle(family_ref)
-
-                if family_handle and family_handle not in family_handles:
-                    family_handles.append(family_handle)
-
-            # Keep track of spouses discovered through families.
-            spouse_handles = set()
-
-            for family_handle in family_handles:
-                try:
-                    family = self._get_family(family_handle)
-                except Exception as err:
-                    _LOGGER.debug(
-                        "Could not fetch family %s: %s",
-                        family_handle,
-                        err,
-                    )
-                    continue
-
-                if not isinstance(family, dict):
-                    continue
-
-                # --------------------------------------------------------------
-                # Find the other parent/partner in the family.
-                # --------------------------------------------------------------
-                parent_rel_list = family.get("parent_rel_list", []) or []
-
-                for parent_rel in parent_rel_list:
-                    spouse_handle = extract_handle(parent_rel)
-
-                    if (
-                        spouse_handle
-                        and spouse_handle != person_handle
-                    ):
-                        spouse_handles.add(spouse_handle)
-
-                # --------------------------------------------------------------
-                # Process events attached to the family.
-                # --------------------------------------------------------------
-                family_event_refs = family.get("event_ref_list", []) or []
-
-                for event_ref in family_event_refs:
-                    event_handle = extract_handle(event_ref)
-
-                    if not event_handle:
-                        continue
-
-                    event = self._get_event(event_handle)
-
-                    if not event:
-                        continue
-
-                    if not is_marriage_event(event):
-                        continue
-
-                    marriage_date = get_event_date(event)
-
-                    if not marriage_date:
-                        _LOGGER.debug(
-                            "Marriage event %s has no usable date",
-                            event_handle,
-                        )
-                        continue
-
-                    # Normally there should be one other partner. If there
-                    # are multiple parent relationships, create an entry for
-                    # each one.
-                    if spouse_handles:
-                        for spouse_handle in sorted(spouse_handles):
-                            spouse_name = get_person_name_from_handle(
-                                spouse_handle
-                            )
-
-                            # IMPORTANT:
-                            # Always return exactly four values.
-                            marriage_dates.append(
-                                (
-                                    spouse_name,
-                                    marriage_date,
-                                    event_handle,
-                                    family_handle,
-                                )
-                            )
-                    else:
-                        # We know this is a family marriage event but couldn't
-                        # identify the other partner.
-                        marriage_dates.append(
-                            (
-                                None,
-                                marriage_date,
-                                event_handle,
-                                family_handle,
-                            )
-                        )
-
-            # ------------------------------------------------------------------
-            # Now process marriage/engagement events directly attached to the
-            # person.
-            #
-            # These events don't necessarily have an obvious family handle.
-            # If the person has family records, try to associate the event with
-            # the appropriate family by matching its event handle.
-            # ------------------------------------------------------------------
-
-            family_event_to_handle = {}
-
-            for family_handle in family_handles:
-                try:
-                    family = self._get_family(family_handle)
-                except Exception:
-                    continue
-
-                if not isinstance(family, dict):
-                    continue
-
-                for event_ref in family.get("event_ref_list", []) or []:
-                    event_handle = extract_handle(event_ref)
-
-                    if event_handle:
-                        family_event_to_handle[event_handle] = family_handle
-
-            for event_ref in event_ref_list:
-                event_handle = extract_handle(event_ref)
-
-                if not event_handle:
-                    continue
-
-                event = self._get_event(event_handle)
-
-                if not event:
-                    continue
-
-                if not is_marriage_event(event):
-                    continue
-
-                marriage_date = get_event_date(event)
-
-                if not marriage_date:
-                    _LOGGER.debug(
-                        "Marriage event %s has no usable date",
-                        event_handle,
-                    )
-                    continue
-
-                # If this event is already represented by a family event above,
-                # don't add it again here.
-                family_handle = family_event_to_handle.get(event_handle)
-
-                if family_handle:
-                    continue
-
-                # If we know spouses from the person's family relationships,
-                # use them. Otherwise return one entry with spouse_name=None.
-                if spouse_handles:
-                    for spouse_handle in sorted(spouse_handles):
-                        spouse_name = get_person_name_from_handle(
-                            spouse_handle
-                        )
-
-                        # IMPORTANT:
-                        # Always return exactly four values.
-                        marriage_dates.append(
-                            (
-                                spouse_name,
-                                marriage_date,
-                                event_handle,
-                                None,
-                            )
-                        )
-                else:
-                    # IMPORTANT:
-                    # Always return exactly four values.
-                    marriage_dates.append(
-                        (
-                            None,
-                            marriage_date,
-                            event_handle,
-                            None,
-                        )
-                    )
-
-            # ------------------------------------------------------------------
-            # Remove exact duplicate entries.
-            #
-            # The same marriage event can sometimes be visible through both
-            # family_list and event_ref_list.
-            # ------------------------------------------------------------------
-            unique_dates = []
-            seen = set()
-
-            for entry in marriage_dates:
-                # Defensive check: make absolutely sure that malformed data
-                # can never reach the caller.
-                if not isinstance(entry, (tuple, list)) or len(entry) != 4:
-                    _LOGGER.warning(
-                        "Ignoring malformed marriage entry for %s: %r",
-                        person_handle,
-                        entry,
-                    )
-                    continue
-
-                spouse_name, marriage_date, event_handle, family_handle = entry
-
-                key = (
-                    spouse_name,
-                    marriage_date,
-                    event_handle,
-                    family_handle,
-                )
-
-                if key in seen:
-                    continue
-
-                seen.add(key)
-                unique_dates.append(
-                    (
-                        spouse_name,
-                        marriage_date,
-                        event_handle,
-                        family_handle,
-                    )
-                )
-
-            _LOGGER.debug(
-                "Found %s marriage/engagement dates for %s",
-                len(unique_dates),
-                self._get_person_name(person),
-            )
-
-            return unique_dates
-
-        except Exception as err:
-            _LOGGER.debug(
-                "Error getting marriage dates for %s: %s",
-                person.get("handle", "unknown"),
-                err,
-                exc_info=True,
-            )
-            return []
-
-    def _get_event(self, handle: str):
-        """Get event details from API."""
-        try:
-            if not handle:
-                return None
-            event = self._get(f"events/{handle}")
-            if event:
-                _LOGGER.debug(
-                    "Fetched event %s: type=%s", handle, event.get("type", {})
-                )
-            return event
-        except Exception as err:
-            _LOGGER.debug("Could not fetch event %s: %s", handle, err)
+        # ponytail: whole tree per refresh; page or use `dates=` filters if trees get huge
+        people = self._get("people/")
+        events = self._get("events/")
+        families = self._get("families/")
+        if not all(isinstance(items, list) for items in (people, events, families)):
+            raise GrampsWebError("Unexpected response from Gramps Web")
+        events = {event.get("handle"): event for event in events}
+
+        def ref_event(person: dict, index_key: str, types: set[str]) -> dict | None:
+            refs = person.get("event_ref_list") or []
+            index = person.get(index_key, -1)
+            if 0 <= index < len(refs):
+                return events.get(refs[index].get("ref"))
+            for ref in refs:  # no index set: a Primary event of that type
+                event = events.get(ref.get("ref"))
+                if event and ref.get("role", "Primary") == "Primary" and _type(event) in types:
+                    return event
             return None
 
-    def _get_family(self, handle: str):
-        """Get family details from API."""
-        try:
-            return self._get(f"families/{handle}")
-        except Exception:
-            return None
-
-    def _calculate_next_deathday(self, person: dict) -> dict | None:
-        """Calculate next deathday for a person."""
-        try:
-            death_ref_index = person.get("death_ref_index", -1)
-            if death_ref_index < 0:
-                return None
-
-            event_ref_list = person.get("event_ref_list", [])
-            if death_ref_index >= len(event_ref_list):
-                return None
-
-            death_ref = event_ref_list[death_ref_index]
-            handle = (
-                death_ref.get("ref")
-                or death_ref.get("handle")
-                or death_ref.get("hlink")
+        result: dict[str, list[dict]] = {kind: [] for kind in KINDS}
+        info: dict[str, dict] = {}
+        for person in people:
+            handle = person.get("handle")
+            birth_event = ref_event(person, "birth_ref_index", {"Birth"})
+            death_event = ref_event(person, "death_ref_index", DEATH_TYPES)
+            birth = parse_date(birth_event.get("date")) if birth_event else None
+            death = parse_date(death_event.get("date")) if death_event else None
+            deceased = bool(death_event) or bool(
+                birth and today.year - birth.year > MAX_AGE_PROBABLY_ALIVE
             )
-
-            event = self._get_event(handle)
-            if not event:
-                return None
-
-            # Verify this is actually a Death event
-            event_type = event.get("type", {})
-            type_string = (
-                event_type.get("string", "")
-                if isinstance(event_type, dict)
-                else str(event_type)
-            )
-            if "death" not in type_string.lower():
-                name = self._get_person_name(person)
-                _LOGGER.debug(
-                    "Person %s: death_ref_index points to non-Death event type: %s",
-                    name,
-                    type_string,
-                )
-                return None
-
-            dateval = event.get("date", {})
-            raw_dateval = None
-            if isinstance(dateval, dict):
-                raw_dateval = (
-                    dateval.get("dateval") or dateval.get("val") or dateval.get("start")
-                )
-            else:
-                raw_dateval = dateval
-
-            death_date = self._parse_dateval(raw_dateval)
-
-            if not death_date:
-                return None
-
-            today = date.today()
-            next_deathday = death_date.replace(year=today.year)
-
-            if next_deathday < today:
-                next_deathday = next_deathday.replace(year=today.year + 1)
-
-            days_until = (next_deathday - today).days
-
-            name = self._get_person_name(person)
-            years_ago = today.year - death_date.year
-            person_handle = person.get("handle")
-            
-            # Get image URL if person data is provided
-            image_url = self._get_person_image_url(person)
-
-            result = {
-                "person_name": name,
-                "death_date": death_date.isoformat(),
-                "next_deathday": next_deathday.isoformat(),
-                "years_ago": years_ago,
-                "days_until": days_until,
-                "person_handle": person_handle,
+            media = _media_handle(person)
+            base = {
+                "person_name": person_name(person),
+                "person_handle": handle,
+                "media_handle": media,
+                "image_url": self.thumbnail_url(media),
             }
-            
-            if image_url:
-                result["image_url"] = image_url
-            
-            return result
+            info[handle] = {**base, "deceased": deceased}
+            if birth:
+                kind = "deceased_birthdays" if deceased else "birthdays"
+                result[kind].append({**base, "birth_date": birth.isoformat()})
+            if death and _type(death_event) == "Death":
+                result["deathdays"].append({**base, "death_date": death.isoformat()})
 
-        except Exception as err:
-            _LOGGER.debug("Could not calculate deathday: %s", err)
-            return None
-
-    def _calculate_anniversary(
-        self, person1_name: str, person2_name: str, dateval, family_handle: str = None, 
-        person1_handle: str = None, person2_handle: str = None, person_by_handle: dict = None
-    ) -> dict | None:
-        """Calculate next anniversary for a couple."""
-        try:
-            # dateval can already be a date object (from _get_marriage_dates)
-            # or it can be a dict/list that needs parsing
-            if isinstance(dateval, date):
-                marriage_date = dateval
-            else:
-                marriage_date = self._parse_dateval(dateval)
-
-            if not marriage_date:
-                return None
-
-            today = date.today()
-            next_anniversary = marriage_date.replace(year=today.year)
-
-            if next_anniversary < today:
-                next_anniversary = next_anniversary.replace(year=today.year + 1)
-
-            days_until = (next_anniversary - today).days
-            years_together = today.year - marriage_date.year
-
-            # Build person_name string
-            if person2_name and person2_name != "Unknown":
-                person_name_str = f"{person1_name} & {person2_name}"
-            else:
-                person_name_str = person1_name
-
-            result = {
-                "person_name": person_name_str,
-                "marriage_date": marriage_date.isoformat(),
-                "next_anniversary": next_anniversary.isoformat(),
-                "years_together": years_together,
-                "days_until": days_until,
+        for family in families:
+            partners = [info[h] for h in (family.get("father_handle"), family.get("mother_handle")) if h in info]
+            family_events = [events.get(ref.get("ref")) for ref in family.get("event_ref_list") or []]
+            family_events = [event for event in family_events if event]
+            if not partners or any(partner["deceased"] for partner in partners):
+                continue
+            if any(_type(event) in END_OF_MARRIAGE_TYPES for event in family_events):
+                continue
+            marriage = next(
+                (
+                    parsed
+                    for event in family_events
+                    if _type(event) == "Marriage" and (parsed := parse_date(event.get("date")))
+                ),
+                None,
+            )
+            if not marriage:
+                continue
+            entry = {
+                "person_name": " & ".join(partner["person_name"] for partner in partners),
+                "marriage_date": marriage.isoformat(),
+                "family_handle": family.get("handle"),
             }
+            # names and photos in the same (father, mother) order
+            for number, partner in enumerate(partners, 1):
+                entry[f"media_handle_person{number}"] = partner["media_handle"]
+                entry[f"image_url_person{number}"] = partner["image_url"]
+            result["anniversaries"].append(entry)
 
-            if family_handle:
-                result["family_handle"] = family_handle
-            
-            # Get images for both partners if available
-            if person_by_handle and person1_handle and person1_handle in person_by_handle:
-                person1 = person_by_handle[person1_handle]
-                image1 = self._get_person_image_url(person1)
-                if image1:
-                    result["image_url_person1"] = image1
-            
-            if person_by_handle and person2_handle and person2_handle in person_by_handle:
-                person2 = person_by_handle[person2_handle]
-                image2 = self._get_person_image_url(person2)
-                if image2:
-                    result["image_url_person2"] = image2
-
-            return result
-
-        except Exception as err:
-            _LOGGER.debug("Could not calculate anniversary: %s", err)
-            return None
+        _LOGGER.debug("Fetched %s", {kind: len(items) for kind, items in result.items()})
+        return result
