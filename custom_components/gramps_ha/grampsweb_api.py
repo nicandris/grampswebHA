@@ -124,7 +124,7 @@ class GrampsWebAPI:
     """Talks to one Gramps Web instance."""
 
     def __init__(self, url: str, username: str | None = None, password: str | None = None) -> None:
-        self.url = url.rstrip("/")
+        self.url = url.strip().rstrip("/")
         self.username = username
         self.password = password
         self.token: str | None = None
