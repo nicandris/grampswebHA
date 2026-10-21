@@ -120,3 +120,15 @@ async def test_reauth_cannot_change_the_username(hass):
     result = await hass.config_entries.flow.async_configure(flow["flow_id"])
     assert [str(key) for key in result["data_schema"].schema] == ["password"]
     assert entry.data["username"] == "u"
+
+
+async def test_entries_from_older_versions_get_a_unique_id(hass):
+    old = MockConfigEntry(domain=DOMAIN, data={**BASE, "url": "https://Gramps.example/"}, title="Gramps HA")
+    twin = MockConfigEntry(domain=DOMAIN, data=BASE, title="Gramps HA")  # same instance and user
+    old.add_to_hass(hass)
+    twin.add_to_hass(hass)
+    with patch(f"{API}.fetch", return_value=RAW):
+        await hass.config_entries.async_setup(old.entry_id)
+        await hass.async_block_till_done()
+    assert old.unique_id == "https://gramps.example|u"
+    assert twin.unique_id is None  # left alone: the id is taken
