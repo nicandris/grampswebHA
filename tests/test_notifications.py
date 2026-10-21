@@ -19,12 +19,16 @@ def day(n):  # date n days after START
     return (dt_util.parse_datetime(START).date() + timedelta(days=n)).isoformat()
 
 
+def on(offset, year):  # the date n days after START, in another year
+    return day(offset).replace(day(offset)[:4], str(year), 1)
+
+
 def lists(offset):
     return {
-        "get_birthdays": [{"person_name": "Ann", "birth_date": "1982-03-11", "next_birthday": day(offset), "age": 44, "days_until": offset}],
-        "get_deceased_birthdays": [{"person_name": "Bob", "birth_date": "1936-03-11", "next_birthday": day(offset), "age": 90, "days_until": offset}],
-        "get_deathdays": [{"person_name": "Cat", "death_date": "2019-03-11", "next_deathday": day(offset), "years_ago": 7, "days_until": offset}],
-        "get_anniversaries": [{"person_name": "Dan & Eve", "marriage_date": "2001-03-11", "next_anniversary": day(offset), "years_together": 25, "days_until": offset}],
+        "birthdays": [{"person_name": "Ann", "birth_date": on(offset, 1982)}],
+        "deceased_birthdays": [{"person_name": "Bob", "birth_date": on(offset, 1936)}],
+        "deathdays": [{"person_name": "Cat", "death_date": on(offset, 2019)}],
+        "anniversaries": [{"person_name": "Dan & Eve", "marriage_date": on(offset, 2001)}],
     }
 
 
@@ -33,10 +37,8 @@ def shown(hass):
 
 
 async def setup(hass, offset=1, **extra):
-    data = lists(offset)
-    patches = [patch(f"{API}.{name}", return_value=value) for name, value in data.items()]
-    for p in patches:
-        p.start()
+    patches = [patch(f"{API}.fetch", return_value=lists(offset))]
+    patches[0].start()
     entry = MockConfigEntry(domain=DOMAIN, data={**BASE, **extra}, title="Gramps HA")
     entry.add_to_hass(hass)
     global ENTRY_ID
@@ -104,24 +106,21 @@ async def test_lifetime(hass, freezer, mode, kept):
 
 async def test_same_day_birthdays_share_one_notification(hass):
     data = lists(1)
-    data["get_birthdays"].append({"person_name": "Zoe", "birth_date": "2023-03-11", "next_birthday": day(1), "age": 3, "days_until": 1})
-    for name, value in data.items():
-        patch(f"{API}.{name}", return_value=value).start()
+    data["birthdays"].append({"person_name": "Zoe", "birth_date": "2023-03-11"})
+    patch(f"{API}.fetch", return_value=data).start()
     entry = MockConfigEntry(domain=DOMAIN, data=BASE, title="Gramps HA")
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    ((title, message),) = shown(hass).values()
+    ((_title, message),) = shown(hass).values()
     assert message == "Ann has a birthday tomorrow!\n\nTurning 44\n\nZoe has a birthday tomorrow!\n\nTurning 3"
 
 
 async def test_years_count_to_the_event_day_across_new_year(hass, freezer):
-    # Fetched on 28 Dec: the API computes years_ago with that year (36), but on
-    # 1 Jan 2027 it is 37 years since a 1 Jan 1990 death.
+    # Fetched on 28 Dec 2026, but on 1 Jan 2027 it is 37 years since a 1 Jan 1990 death.
     data = lists(1)
-    data["get_deathdays"] = [{"person_name": "Cat", "death_date": "1990-01-01", "next_deathday": "2027-01-01", "years_ago": 36, "days_until": 4}]
-    for name, value in data.items():
-        patch(f"{API}.{name}", return_value=value).start()
+    data["deathdays"] = [{"person_name": "Cat", "death_date": "1990-01-01"}]
+    patch(f"{API}.fetch", return_value=data).start()
     freezer.move_to(dt_util.parse_datetime("2026-12-28 12:00:00").replace(tzinfo=dt_util.get_time_zone("Europe/Amsterdam")))
     entry = MockConfigEntry(domain=DOMAIN, data={**BASE, "notify_events": ["deathdays"]}, title="Gramps HA")
     entry.add_to_hass(hass)

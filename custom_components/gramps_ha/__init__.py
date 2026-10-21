@@ -19,13 +19,15 @@ from homeassistant.components import persistent_notification
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
+from .grampsweb_api import GrampsWebAPI, GrampsWebError, upcoming
 from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
-SCAN_INTERVAL = timedelta(hours=6)
+# Entries kept per list (the all-birthdays attribute shows this many)
+LIST_LIMIT = 50
 
 # Notifiable event lists: kind -> (event date key, original date key) in each entry
 NOTIFY_KEYS = {
@@ -53,8 +55,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("Setting up Gramps HA integration")
 
     try:
-        from .grampsweb_api import GrampsWebAPI
-
         hass.data.setdefault(DOMAIN, {})
 
         url = entry.data.get(CONF_URL)
@@ -77,12 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         _LOGGER.debug("Device registered: %s", device.name)
 
-        api = GrampsWebAPI(
-            url=url,
-            username=username,
-            password=password,
-            hass_config_path=hass.config.config_dir,
-        )
+        api = GrampsWebAPI(url=url, username=username, password=password)
 
         # Get scan interval from config (in hours), default to DEFAULT_SCAN_INTERVAL
         scan_interval_hours = entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
@@ -166,53 +161,16 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from API."""
+        today = dt_util.now().date()
         try:
-            _LOGGER.debug("Fetching birthday data from Gramps Web")
-            data = await self.hass.async_add_executor_job(self.api.get_birthdays)
-            _LOGGER.debug("Fetched %s birthdays", len(data) if data else 0)
-            
-            # Fetch birthdays for people who have passed away.
-            deceased_birthdays = await self.hass.async_add_executor_job(
-                self.api.get_deceased_birthdays
-            )
-            self.hass.data.setdefault(f"{DOMAIN}_deceased_birthdays", {})[
-                self.entry.entry_id
-            ] = deceased_birthdays or []
-            _LOGGER.debug(
-                "Deceased birthdays fetched: %s entries",
-                len(deceased_birthdays) if deceased_birthdays else 0,
-            )
-            
-            # Fetch deathdays if enabled
-            notify_events = self.entry.data.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)
-            if self.entry.data.get("show_deathdays", False) or "deathdays" in notify_events:
-                deathdays = await self.hass.async_add_executor_job(self.api.get_deathdays)
-                self.hass.data.setdefault(f"{DOMAIN}_deathdays", {})[self.entry.entry_id] = deathdays or []
-                _LOGGER.debug(
-                    "Deathdays fetched: %s entries",
-                    len(deathdays) if deathdays else 0,
-                )
-            else:
-                _LOGGER.debug("Deathdays disabled in config; skipping fetch")
-            
-            # Fetch anniversaries if enabled
-            if self.entry.data.get("show_anniversaries", False) or "anniversaries" in notify_events:
-                anniversaries = await self.hass.async_add_executor_job(self.api.get_anniversaries)
-                self.hass.data.setdefault(f"{DOMAIN}_anniversaries", {})[self.entry.entry_id] = anniversaries or []
-                _LOGGER.debug(
-                    "Anniversaries fetched: %s entries",
-                    len(anniversaries) if anniversaries else 0,
-                )
-            else:
-                _LOGGER.debug("Anniversaries disabled in config; skipping fetch")
-            
-            # Store current list for next comparison
-            self.last_birthdays = data or []
-            
-            return data
-        except Exception as err:
-            _LOGGER.error("Error fetching data: %s", err, exc_info=True)
-            raise UpdateFailed(f"Error communicating with API: {err}") from err
+            raw = await self.hass.async_add_executor_job(self.api.fetch, today)
+        except GrampsWebError as err:
+            raise UpdateFailed(f"Error communicating with Gramps Web: {err}") from err
+        lists = {kind: upcoming(kind, entries, today)[:LIST_LIMIT] for kind, entries in raw.items()}
+        for kind in ("deceased_birthdays", "deathdays", "anniversaries"):
+            self.hass.data.setdefault(f"{DOMAIN}_{kind}", {})[self.entry.entry_id] = lists[kind]
+        self.last_birthdays = lists["birthdays"]
+        return lists["birthdays"]
 
     def _events(self, kind: str) -> list[dict]:
         if kind == "birthdays":
