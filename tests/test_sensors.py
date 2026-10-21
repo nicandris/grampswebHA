@@ -1,9 +1,11 @@
 """Sensor platform: unique_ids/entity_ids survive the refactor, each kind reads its own list."""
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 API = "custom_components.gramps_ha.grampsweb_api.GrampsWebAPI"
 DATA = {"url": "https://g.example", "username": "u", "password": "p",
@@ -108,3 +110,23 @@ async def test_deathdays_and_anniversaries_without_living_birthdays(hass, enable
     assert hass.states.get("sensor.anniversaries_next_anniversary_1_years_together").state == "25"
     assert hass.states.get("sensor.anniversaries_next_anniversary_1_link").state == "https://g.example/family/F"
     assert hass.states.get("sensor.birthdays_next_birthday_1_name").state == "unknown"
+
+
+async def test_days_until_and_order_follow_the_day_without_a_fetch(hass, enable_custom_integrations, freezer):
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    zone = dt_util.get_time_zone("Europe/Amsterdam")
+    # 23:30 local is already the next day in UTC: days must follow HA's time zone
+    freezer.move_to(datetime(2026, 10, 20, 23, 30, tzinfo=zone))
+    raw = {**EMPTY, "birthdays": [{"person_name": "Ann", "birth_date": "1990-10-21"},
+                                  {"person_name": "Bob", "birth_date": "1990-10-23"}]}
+    await setup(hass, raw)
+    days, name = "sensor.birthdays_next_birthday_1_days_until", "sensor.birthdays_next_birthday_1_name"
+    assert (hass.states.get(name).state, hass.states.get(days).state) == ("Ann", "1")
+
+    for expected in [("Ann", "0"), ("Bob", "1"), ("Bob", "0")]:
+        nxt = dt_util.start_of_local_day(dt_util.now() + timedelta(days=1)) + timedelta(seconds=5)
+        freezer.move_to(nxt)
+        async_fire_time_changed(hass, nxt)
+        await hass.async_block_till_done()
+        assert (hass.states.get(name).state, hass.states.get(days).state) == expected
+    assert hass.states.get("sensor.birthdays_next_birthday_2_upcoming_date").state == "2027-10-21"

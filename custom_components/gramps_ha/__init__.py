@@ -20,7 +20,7 @@ from homeassistant.components import persistent_notification
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
-from .grampsweb_api import GrampsWebAPI, GrampsWebAuthError, GrampsWebError, upcoming
+from .grampsweb_api import KINDS, GrampsWebAPI, GrampsWebAuthError, GrampsWebError, upcoming
 from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,27 +29,6 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 # Entries kept per list (the all-birthdays attribute shows this many)
 LIST_LIMIT = 50
-
-# Notifiable event lists: kind -> (event date key, original date key) in each entry
-NOTIFY_KEYS = {
-    "birthdays": ("next_birthday", "birth_date"),
-    "deceased_birthdays": ("next_birthday", "birth_date"),
-    "deathdays": ("next_deathday", "death_date"),
-    "anniversaries": ("next_anniversary", "marriage_date"),
-}
-
-
-def _years(event: dict, date_key: str, origin_key: str) -> int | str:
-    """Years reached on the event day, from the dates themselves.
-
-    The lists' own age/years fields are computed on the fetch day, so they
-    are one short when a fetch before New Year serves an event after it.
-    """
-    try:
-        return int(str(event[date_key])[:4]) - int(str(event[origin_key])[:4])
-    except (KeyError, TypeError, ValueError):
-        return "?"
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gramps HA from a config entry."""
@@ -120,6 +99,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.entry = entry
+        self._view_key = None
+        self._view: dict[str, list[dict]] = {}
 
     async def _async_update_data(self):
         """Fetch data from API."""
@@ -130,11 +111,20 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             raise ConfigEntryAuthFailed(str(err)) from err
         except GrampsWebError as err:
             raise UpdateFailed(f"Error communicating with Gramps Web: {err}") from err
-        return {kind: upcoming(kind, entries, today)[:LIST_LIMIT] for kind, entries in raw.items()}
+        return raw
 
     def events(self, kind: str) -> list[dict]:
-        """Upcoming events of a kind, soonest first."""
-        return (self.data or {}).get(kind, [])
+        """Upcoming events of a kind as of today, soonest first.
+
+        Computed from the fetched dates per day, so days until and order stay
+        right between (weekly) fetches.
+        """
+        key = (id(self.data), dt_util.now().date())
+        if self._view_key != key:
+            self._view_key, self._view = key, {}
+        if kind not in self._view:
+            self._view[kind] = upcoming(kind, (self.data or {}).get(kind, []), key[1])[:LIST_LIMIT]
+        return self._view[kind]
 
     @callback
     def on_notification_update(self, update_type, notifications) -> None:
@@ -147,12 +137,14 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
             self.dismissed_store.async_delay_save(lambda: sorted(self.dismissed), 1)
 
     async def async_notify(self, now=None) -> None:
-        """Notify about tomorrow's events and remove finished notifications.
+        """Refresh the entities for the new day, notify about tomorrow's events
+        and remove finished notifications.
 
         Runs at setup and daily just after midnight, on the cached lists:
         they hold absolute dates, so they stay valid between fetches.
         One notification per kind and day, so its id is known in advance.
         """
+        self.async_update_listeners()
         kinds = self.entry.data.get(CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS)
         today = dt_util.now().date()
         tomorrow = (today + timedelta(days=1)).isoformat()
@@ -162,7 +154,7 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
 
         if self.entry.data.get(CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE) == NOTIFY_UNTIL_OVER:
             yesterday = (today - timedelta(days=1)).isoformat()
-            for kind in NOTIFY_KEYS:
+            for kind in KINDS:
                 persistent_notification.async_dismiss(self.hass, notification_id(kind, yesterday))
 
         # Forget dismissals of events that are over (ids end in the event date).
@@ -178,10 +170,10 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         prefix = f"component.{DOMAIN}.exceptions"
 
         for kind in kinds:
-            date_key, origin_key = NOTIFY_KEYS[kind]
+            _, date_key, years_key = KINDS[kind]
             messages = [
                 strings[f"{prefix}.{kind}_message.message"].format(
-                    name=event.get("person_name"), years=_years(event, date_key, origin_key)
+                    name=event.get("person_name"), years=event.get(years_key)
                 )
                 for event in self.events(kind)
                 if str(event.get(date_key, ""))[:10] == tomorrow
