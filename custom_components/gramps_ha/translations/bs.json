@@ -204,6 +204,23 @@
       "all_birthdays": {
         "name": "Svi nadolazeći rođendani"
       }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Sljedeći rođendan {n} Fotografija"
+      },
+      "deceased_birthday_photo": {
+        "name": "Sljedeći rođendan preminulog {n} Fotografija"
+      },
+      "deathday_photo": {
+        "name": "Sljedeća godišnjica smrti {n} Fotografija"
+      },
+      "anniversary_photo_person1": {
+        "name": "Sljedeća godišnjica braka {n} Fotografija osobe 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Sljedeća godišnjica braka {n} Fotografija osobe 2"
+      }
     }
   },
   "device": {

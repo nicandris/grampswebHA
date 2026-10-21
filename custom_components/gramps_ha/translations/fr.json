@@ -204,6 +204,23 @@
       "all_birthdays": {
         "name": "Tous les anniversaires à venir"
       }
+    },
+    "image": {
+      "birthday_photo": {
+        "name": "Prochain anniversaire {n} Photo"
+      },
+      "deceased_birthday_photo": {
+        "name": "Prochain anniversaire défunt {n} Photo"
+      },
+      "deathday_photo": {
+        "name": "Prochain jour de décès {n} Photo"
+      },
+      "anniversary_photo_person1": {
+        "name": "Prochain anniversaire de mariage {n} Photo personne 1"
+      },
+      "anniversary_photo_person2": {
+        "name": "Prochain anniversaire de mariage {n} Photo personne 2"
+      }
     }
   },
   "device": {

@@ -16,21 +16,17 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    CONF_ENTITY_LANGUAGE,
     CONF_NUM_BIRTHDAYS,
     CONF_SHOW_ANNIVERSARIES,
     CONF_SHOW_DEATHDAYS,
     CONF_URL,
-    DEFAULT_ENTITY_LANGUAGE,
     DEFAULT_NUM_BIRTHDAYS,
     DEFAULT_SHOW_ANNIVERSARIES,
     DEFAULT_SHOW_DEATHDAYS,
     DOMAIN,
-    ENTITY_LANGUAGE_HA,
 )
 
 Event = dict[str, Any]
@@ -42,7 +38,6 @@ class GrampsSensorDescription(SensorEntityDescription):
 
     value_fn: Callable[[Event, str], Any]
     name_key: str | None = None  # translation key suffix, when it differs from key
-    picture_key: str | None = None
 
 
 def _date(key: str) -> Callable[[Event, str], date | None]:
@@ -72,7 +67,7 @@ def _fields(origin: str, upcoming: str, years: str, years_icon: str, years_unit:
                                 value_fn=_field("days_until")),
         *(
             GrampsSensorDescription(key=key, name_key=name_key, icon="mdi:image-outline",
-                                    value_fn=_field(image_key), picture_key=image_key)
+                                    value_fn=_field(image_key))
             for key, name_key, image_key in images
         ),
         GrampsSensorDescription(key="link", icon="mdi:link", value_fn=_link(*link)),
@@ -110,19 +105,6 @@ async def async_setup_entry(
     """Set up Gramps Web sensors from a config entry."""
     coordinator = entry.runtime_data
 
-    # Entity and device names: English, or HA's language when chosen in setup.
-    language = (
-        hass.config.language
-        if entry.data.get(CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE) == ENTITY_LANGUAGE_HA
-        else "en"
-    )
-    coordinator.names = {}
-    for category in ("entity", "device"):
-        strings = await async_get_translations(hass, language, category, {DOMAIN})
-        for key, value in strings.items():
-            # component.gramps_ha.entity.sensor.<key>.name / component.gramps_ha.device.<key>.name
-            coordinator.names[key.split(".")[-2]] = value
-
     num = entry.data.get(CONF_NUM_BIRTHDAYS, DEFAULT_NUM_BIRTHDAYS)
     sensors: list[SensorEntity] = [
         GrampsEventSensor(coordinator, entry, kind, index, description)
@@ -133,6 +115,19 @@ async def async_setup_entry(
     ]
     sensors.append(GrampsWebAllBirthdaysSensor(coordinator, entry))
     async_add_entities(sensors)
+
+
+def kind_device(coordinator, entry: ConfigEntry, kind: str) -> DeviceInfo:
+    """The device that groups one kind's entities."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{entry.entry_id}_{kind}")},
+        name=coordinator.names[kind],
+        manufacturer="Gramps Web",
+        model=KINDS[kind][1],
+        entry_type=DeviceEntryType.SERVICE,
+        configuration_url=entry.data.get(CONF_URL),
+        via_device_id=coordinator.device_id,
+    )
 
 
 class GrampsEntity(CoordinatorEntity):
@@ -154,22 +149,14 @@ class GrampsEventSensor(GrampsEntity, SensorEntity):
     def __init__(self, coordinator, entry: ConfigEntry, kind: str, index: int,
                  description: GrampsSensorDescription) -> None:
         super().__init__(coordinator)
-        prefix, model = KINDS[kind][:2]
+        prefix = KINDS[kind][0]
         self.entity_description = description
         self._kind = kind
         self._index = index
         self._base_url = entry.data.get(CONF_URL, "").rstrip("/")
         self._attr_unique_id = f"{entry.entry_id}_{prefix}_{index}_{description.key}"
         self._attr_name = coordinator.names[f"{prefix}_{description.name_key or description.key}"].format(n=index + 1)
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{entry.entry_id}_{kind}")},
-            name=coordinator.names[kind],
-            manufacturer="Gramps Web",
-            model=model,
-            entry_type=DeviceEntryType.SERVICE,
-            configuration_url=entry.data.get(CONF_URL),
-            via_device_id=coordinator.device_id,
-        )
+        self._attr_device_info = kind_device(coordinator, entry, kind)
 
     def _event(self) -> Event | None:
         events = self.coordinator.events(self._kind)
@@ -179,12 +166,6 @@ class GrampsEventSensor(GrampsEntity, SensorEntity):
     def native_value(self):
         event = self._event()
         return self.entity_description.value_fn(event, self._base_url) if event else None
-
-    @property
-    def entity_picture(self) -> str | None:
-        event = self._event()
-        key = self.entity_description.picture_key
-        return event.get(key) if event and key else None
 
     @property
     def extra_state_attributes(self):

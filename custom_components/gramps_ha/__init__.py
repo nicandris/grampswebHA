@@ -1,5 +1,8 @@
 """The Gramps HA integration."""
 
+import os
+import re
+
 import logging
 from datetime import timedelta, datetime, date
 from pathlib import Path
@@ -21,11 +24,11 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 
 from .grampsweb_api import KINDS, GrampsWebAPI, GrampsWebAuthError, GrampsWebError, upcoming
-from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER
+from .const import DOMAIN, CONF_URL, CONF_USERNAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, CONF_NOTIFY_EVENTS, DEFAULT_NOTIFY_EVENTS, CONF_NOTIFY_MODE, DEFAULT_NOTIFY_MODE, NOTIFY_UNTIL_OVER, CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE, ENTITY_LANGUAGE_HA
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.IMAGE, Platform.SENSOR]
 
 # Entries kept per list (the all-birthdays attribute shows this many)
 LIST_LIMIT = 50
@@ -53,6 +56,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator.device_id = device.id  # parent of the per-category devices
     entry.runtime_data = coordinator
 
+    # Entity and device names: English, or HA's language when chosen in setup.
+    language = (
+        hass.config.language
+        if entry.data.get(CONF_ENTITY_LANGUAGE, DEFAULT_ENTITY_LANGUAGE) == ENTITY_LANGUAGE_HA
+        else "en"
+    )
+    coordinator.names = {}
+    for category in ("entity", "device"):
+        strings = await async_get_translations(hass, language, category, {DOMAIN})
+        for key, value in strings.items():
+            # component.gramps_ha.entity.<platform>.<key>.name / component.gramps_ha.device.<key>.name
+            coordinator.names[key.split(".")[-2]] = value
+
+    await hass.async_add_executor_job(_remove_downloaded_photos, hass.config.path("www", "gramps"))
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Notifications run daily on the cached lists, not on each (weekly) fetch.
@@ -68,6 +86,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async_track_time_change(hass, coordinator.async_notify, hour=0, minute=0, second=5)
     )
     return True
+
+
+def _remove_downloaded_photos(folder: str) -> None:
+    """Delete photos that older versions saved in www/, which /local/ serves without login."""
+    if not os.path.isdir(folder):
+        return
+    for name in os.listdir(folder):
+        if re.fullmatch(r"[0-9a-f]{32}\.jpg", name):
+            os.remove(os.path.join(folder, name))
+    if not os.listdir(folder):
+        os.rmdir(folder)
 
 
 def _dismissed_store(hass: HomeAssistant, entry: ConfigEntry) -> Store:
