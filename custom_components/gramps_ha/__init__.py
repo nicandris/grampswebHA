@@ -155,7 +155,8 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         )
         self.api = api
         self.entry = entry
-        self._view_key = None
+        self._view_data = None
+        self._view_day = None
         self._view: dict[str, list[dict]] = {}
 
     async def _async_update_data(self):
@@ -176,11 +177,11 @@ class GrampsWebCoordinator(DataUpdateCoordinator):
         Computed from the fetched dates per day, so days until and order stay
         right between (weekly) fetches.
         """
-        key = (id(self.data), dt_util.now().date())
-        if self._view_key != key:
-            self._view_key, self._view = key, {}
+        today = dt_util.now().date()
+        if self._view_data is not self.data or self._view_day != today:
+            self._view_data, self._view_day, self._view = self.data, today, {}
         if kind not in self._view:
-            self._view[kind] = upcoming(kind, (self.data or {}).get(kind, []), key[1])[:LIST_LIMIT]
+            self._view[kind] = upcoming(kind, (self.data or {}).get(kind, []), today)[:LIST_LIMIT]
         return self._view[kind]
 
     @callback
