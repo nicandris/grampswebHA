@@ -184,6 +184,10 @@ class GrampsWebAllBirthdaysSensor(GrampsEntity, SensorEntity):
     """Representation of all upcoming birthdays sensor."""
 
     _attr_icon = "mdi:calendar-multiple"
+    # Names and birth dates of up to 50 living people: every HA user can read
+    # states, so this is opt-in for new installs and kept out of the history DB.
+    _attr_entity_registry_enabled_default = False
+    _unrecorded_attributes = frozenset({"birthdays"})
 
     def __init__(self, coordinator, entry: ConfigEntry) -> None:
         """Initialize the sensor."""
