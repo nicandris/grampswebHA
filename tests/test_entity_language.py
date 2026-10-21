@@ -66,7 +66,7 @@ async def test_ha_language_names_then_reconfigure_back(hass):
     assert result["type"] is FlowResultType.FORM and result["step_id"] == "reconfigure"
     # form is pre-filled from the entry
     defaults = {str(k): k.default() for k in result["data_schema"].schema if callable(getattr(k, "default", None))}
-    assert defaults["entity_language"] == "ha" and defaults["password"] == "p"
+    assert defaults["entity_language"] == "ha" and "password" not in defaults  # stored password not sent back
 
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "entity_language": "en"})
     assert result["type"] is FlowResultType.ABORT and result["reason"] == "reconfigure_successful"
@@ -100,3 +100,25 @@ async def test_every_language_resolves_all_names(hass, lang):
     n = names(hass, entry)
     assert len(n) == 1 + 7 * 2 + 7 + 8 + 5  # all, birthday, deceased, deathday, anniversary sensors; 5 photos
     assert all(name and "{n}" not in name for _, name in n.values())
+
+
+async def test_reconfigure_without_password_keeps_it(hass):
+    entry = await setup(hass, BASE)
+    result = await entry.start_reconfigure_flow(hass)
+    data = {k: v for k, v in BASE.items() if k != "password"}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], data)
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data["password"] == "p"
+
+
+@pytest.mark.parametrize(("url", "error"), [
+    ("http://gramps.example.com", {"url": "insecure_url"}),
+    ("http://192.168.1.5:5000", {}),
+    ("http://homeassistant.local:5000", {}),
+    ("http://gramps", {}),
+    ("https://gramps.example.com", {}),
+])
+async def test_plain_http_only_on_the_local_network(hass, url, error):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {**BASE, "url": url})
+    assert result.get("errors", {}) == error

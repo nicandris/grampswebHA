@@ -50,7 +50,7 @@
         "data_description": {
           "url": "Basis-URL Ihrer Gramps Web Instanz, z. B. {example_url}",
           "username": "Ein Gramps Web Benutzer. Ein Konto mit der Rolle Mitglied (nur lesen) genügt.",
-          "password": "Passwort dieses Gramps Web Benutzers.",
+          "password": "Leer lassen, um das aktuelle Passwort zu behalten.",
           "num_birthdays": "Wie viele kommende Geburtstage eigene Sensoren erhalten.",
           "show_deathdays": "Zusätzlich Sensoren für kommende Todestage anlegen.",
           "show_anniversaries": "Zusätzlich Sensoren für kommende Hochzeitstage anlegen.",
@@ -74,7 +74,8 @@
       "cannot_connect": "Verbindung fehlgeschlagen",
       "invalid_url": "Ungültige URL",
       "unknown": "Ein unbekannter Fehler ist aufgetreten",
-      "invalid_auth": "Gramps Web hat Benutzername oder Passwort abgelehnt"
+      "invalid_auth": "Gramps Web hat Benutzername oder Passwort abgelehnt",
+      "insecure_url": "Verwende https:// oder eine lokale Adresse: http sendet das Passwort unverschlüsselt"
     },
     "abort": {
       "already_configured": "Diese Gramps Web Instanz ist bereits konfiguriert",

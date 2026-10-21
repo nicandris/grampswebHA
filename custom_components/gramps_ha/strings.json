@@ -50,7 +50,7 @@
         "data_description": {
           "url": "Base URL of your Gramps Web instance, e.g. {example_url}",
           "username": "A Gramps Web user. A read-only account with the Member role is enough.",
-          "password": "Password of that Gramps Web user.",
+          "password": "Leave empty to keep the current password.",
           "num_birthdays": "How many upcoming birthdays get their own set of sensors.",
           "show_deathdays": "Also create sensors for upcoming death anniversaries.",
           "show_anniversaries": "Also create sensors for upcoming wedding anniversaries.",
@@ -74,7 +74,8 @@
       "cannot_connect": "Connection failed",
       "invalid_url": "Invalid URL",
       "unknown": "An unknown error occurred",
-      "invalid_auth": "Gramps Web rejected the username or password"
+      "invalid_auth": "Gramps Web rejected the username or password",
+      "insecure_url": "Use https://, or a local address: plain http sends the password unencrypted"
     },
     "abort": {
       "already_configured": "This Gramps Web instance is already configured",

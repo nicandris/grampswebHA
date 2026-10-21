@@ -44,7 +44,8 @@
           "entity_language": "Jezik naziva senzora i uređaja. Promjena ih preimenuje; ID-ovi entiteta ostaju isti.",
           "notify_events": "Događaji za koje stiže obavijest dan ranije. Ostavite prazno da isključite obavijesti.",
           "notify_mode": "Zadrži je dok je ne zatvorite ili je automatski ukloni kad dan prođe.",
-          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba."
+          "show_deceased_birthdays": "Napravi i senzore za rođendane preminulih osoba.",
+          "password": "Ostavite prazno da zadržite trenutnu lozinku."
         }
       },
       "reauth_confirm": {
@@ -60,7 +61,8 @@
       "cannot_connect": "Povezivanje nije uspjelo",
       "invalid_url": "Nevažeći URL",
       "unknown": "Došlo je do nepoznate greške",
-      "invalid_auth": "Gramps Web je odbio korisničko ime ili lozinku"
+      "invalid_auth": "Gramps Web je odbio korisničko ime ili lozinku",
+      "insecure_url": "Koristite https:// ili lokalnu adresu: http šalje lozinku nešifrovano"
     },
     "abort": {
       "already_configured": "Ova Gramps Web instanca je već konfigurirana",
