@@ -1,6 +1,8 @@
 """Sensor platform: unique_ids/entity_ids survive the refactor, each kind reads its own list."""
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
+
+import pytest
 
 import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
 from homeassistant.helpers import entity_registry as er
@@ -76,6 +78,13 @@ BEFORE = {
 }
 
 
+@pytest.fixture
+def all_enabled():
+    with patch("homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+               new_callable=PropertyMock, return_value=True):
+        yield
+
+
 async def setup(hass, raw, data=DATA):
     entry = MockConfigEntry(domain="gramps_ha", data=data, title="Gramps HA")
     entry.add_to_hass(hass)
@@ -98,7 +107,7 @@ async def test_unique_ids_and_entity_ids_unchanged(hass, enable_custom_integrati
     assert registry(hass, entry) == BEFORE
 
 
-async def test_deathdays_and_anniversaries_without_living_birthdays(hass, enable_custom_integrations, freezer):
+async def test_deathdays_and_anniversaries_without_living_birthdays(hass, enable_custom_integrations, freezer, all_enabled):
     freezer.move_to("2026-10-21 12:00:00")
     raw = {**EMPTY,
            "deathdays": [{"person_name": "Cat", "death_date": "2000-10-25", "person_handle": "h"}],
@@ -158,3 +167,25 @@ async def test_deceased_birthdays_can_be_turned_off(hass, enable_custom_integrat
     entry = await setup(hass, EMPTY, {**DATA, "show_deceased_birthdays": False})
     assert registry(hass, entry) == {k: v for k, v in BEFORE.items() if not k.startswith("deceased_")}
     assert not any(k.startswith("deceased_") for k in registry(hass, entry, "image"))
+
+
+async def test_fewer_slots_remove_the_old_entities(hass, enable_custom_integrations):
+    entry = await setup(hass, EMPTY)
+    hass.config_entries.async_update_entry(entry, data={**DATA, "num_birthdays": 1, "show_anniversaries": False})
+    with patch(f"{API}.fetch", return_value=EMPTY):
+        await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+    assert registry(hass, entry) == {
+        k: v for k, v in BEFORE.items() if "_1_" not in k and not k.startswith("anniversary_")
+    }
+    assert sorted(registry(hass, entry, "image")) == ["birthday_0_photo", "deathday_0_photo", "deceased_birthday_0_photo"]
+
+
+async def test_link_and_image_sensors_are_opt_in(hass, enable_custom_integrations):
+    entry = await setup(hass, EMPTY)
+    disabled = {
+        e.unique_id.removeprefix(entry.entry_id + "_")
+        for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+        if e.disabled_by and e.domain == "sensor"
+    }
+    assert disabled == {k for k in BEFORE if k.endswith(("_link", "_image", "_image_person1", "_image_person2"))} | {"all_birthdays"}

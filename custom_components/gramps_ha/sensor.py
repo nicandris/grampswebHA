@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -69,10 +70,11 @@ def _fields(origin: str, upcoming: str, years: str, years_icon: str, years_unit:
                                 value_fn=_field("days_until")),
         *(
             GrampsSensorDescription(key=key, name_key=name_key, icon="mdi:image-outline",
-                                    value_fn=_field(image_key))
+                                    entity_registry_enabled_default=False, value_fn=_field(image_key))
             for key, name_key, image_key in images
         ),
-        GrampsSensorDescription(key="link", icon="mdi:link", value_fn=_link(*link)),
+        GrampsSensorDescription(key="link", icon="mdi:link", entity_registry_enabled_default=False,
+                                value_fn=_link(*link)),
     )
 
 
@@ -118,7 +120,17 @@ async def async_setup_entry(
         for description in fields
     ]
     sensors.append(GrampsWebAllBirthdaysSensor(coordinator, entry))
+    remove_stale_entities(hass, entry, "sensor", sensors)
     async_add_entities(sensors)
+
+
+def remove_stale_entities(hass: HomeAssistant, entry: ConfigEntry, domain: str, entities: list) -> None:
+    """Drop registry entries of slots or kinds that the settings no longer create."""
+    registry = er.async_get(hass)
+    current = {entity.unique_id for entity in entities}
+    for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if registry_entry.domain == domain and registry_entry.unique_id not in current:
+            registry.async_remove(registry_entry.entity_id)
 
 
 def kind_device(coordinator, entry: ConfigEntry, kind: str) -> DeviceInfo:
