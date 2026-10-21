@@ -130,3 +130,25 @@ async def test_days_until_and_order_follow_the_day_without_a_fetch(hass, enable_
         await hass.async_block_till_done()
         assert (hass.states.get(name).state, hass.states.get(days).state) == expected
     assert hass.states.get("sensor.birthdays_next_birthday_2_upcoming_date").state == "2027-10-21"
+
+
+async def test_all_birthdays_is_opt_in_and_not_recorded(recorder_mock, hass, enable_custom_integrations):
+    from homeassistant.components.recorder.history import get_significant_states
+    from pytest_homeassistant_custom_component.components.recorder.common import async_wait_recording_done
+
+    raw = {**EMPTY, "birthdays": [{"person_name": "Ann", "birth_date": "1980-01-01"}]}
+    entry = await setup(hass, raw)
+    entity_id = "sensor.gramps_ha_all_upcoming_birthdays"
+    registry_entry = er.async_get(hass).async_get(entity_id)
+    assert registry_entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+
+    er.async_get(hass).async_update_entity(entity_id, disabled_by=None)
+    with patch(f"{API}.fetch", return_value=raw):
+        await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+    assert hass.states.get(entity_id).attributes["birthdays"][0]["person_name"] == "Ann"
+    await async_wait_recording_done(hass)
+    history = await recorder_mock.async_add_executor_job(
+        get_significant_states, hass, dt_util.utcnow() - timedelta(hours=1), None, [entity_id]
+    )
+    assert history[entity_id] and all("birthdays" not in s.attributes for s in history[entity_id])

@@ -1,5 +1,5 @@
 """Setup option for entity-name language + reconfigure, against real HA core."""
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import pytest
 import custom_components.gramps_ha.grampsweb_api  # noqa: F401 (patch target)
@@ -18,7 +18,10 @@ BASE = {"url": "https://gramps.example", "username": "u", "password": "p",
 
 @pytest.fixture(autouse=True)
 def _env(enable_custom_integrations, tmp_path):
-    with patch(f"{API}.fetch", return_value=RAW), patch(f"{API}.test_connection"):
+    # every entity enabled, so all names can be checked
+    enabled = patch("homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+                    new_callable=PropertyMock, return_value=True)
+    with patch(f"{API}.fetch", return_value=RAW), patch(f"{API}.test_connection"), enabled:
         yield
 
 
