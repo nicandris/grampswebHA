@@ -127,7 +127,7 @@ def _is_local_host(host: str | None) -> bool:
     return "." not in host or host.lower().endswith(LOCAL_SUFFIXES)
 
 
-def _unique_id(user_input: dict[str, Any]) -> str:
+def _unique_id(user_input: Mapping[str, Any]) -> str:
     return f"{user_input[CONF_URL].strip().rstrip('/').lower()}|{user_input[CONF_USERNAME]}"
 
 

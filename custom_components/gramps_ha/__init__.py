@@ -38,6 +38,7 @@ from .const import (
     ENTITY_LANGUAGE_HA,
     NOTIFY_UNTIL_OVER,
 )
+from .config_flow import _unique_id as config_unique_id
 from .grampsweb_api import (
     KINDS,
     GrampsWebAPI,
@@ -56,6 +57,11 @@ RETRY_AFTER = 15 * 60  # seconds
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Gramps HA from a config entry."""
+    if entry.unique_id is None:  # entries created before 2026.10.4
+        unique_id = config_unique_id(entry.data)
+        if not any(other.unique_id == unique_id for other in hass.config_entries.async_entries(DOMAIN)):
+            hass.config_entries.async_update_entry(entry, unique_id=unique_id)
+
     url = entry.data.get(CONF_URL)
     api = GrampsWebAPI(url=url, username=entry.data.get(CONF_USERNAME), password=entry.data.get(CONF_PASSWORD))
     coordinator = GrampsWebCoordinator(
