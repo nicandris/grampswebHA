@@ -30,11 +30,11 @@ Es zählen nur genaue Daten: Daten mit *um*, *vor*, *nach*, Zeiträume sowie ges
 
 ## Installation
 
-### HACS (empfohlen)
+### Install Integration via Marketplace (Previously known as HACS)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicandris&repository=grampswebHA&category=Integration)
+[![Open your Home Assistant instance and open a repository inside the Marketplace.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nicandris&repository=grampswebHA&category=Integration)
 
-1. Öffnen Sie HACS in Home Assistant
+1. Öffnen Sie Marketplace in Home Assistant
 2. Klicken Sie auf die drei Punkte (⋮) oben rechts
 3. Wählen Sie **Benutzerdefinierte Repositorys**
 4. Fügen Sie die Repository-URL hinzu: `https://github.com/nicandris/grampswebHA`
