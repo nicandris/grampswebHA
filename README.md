@@ -29,9 +29,9 @@ Only exact dates are used: dates marked *about*, *before*, *after*, ranges and e
 
 ## Installation
 
-### HACS (recommended)
+### Install Integration via Marketplace (Previously known as HACS)
 
-1. Open HACS in Home Assistant
+1. Open Marketplace in Home Assistant
 2. Click on the three dots (⋮) in the top right
 3. Select **Custom repositories**
 4. Add the repository URL: `https://github.com/nicandris/grampswebHA`
